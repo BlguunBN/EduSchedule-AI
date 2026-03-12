@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --sidebar-width: 256px;
 }
 
 @theme inline {
@@ -12,15 +13,174 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Focus ring system */
+*:focus-visible {
+  outline: 2px solid #0ea5e9;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Text selection */
+::selection {
+  background: #bae6fd;
+  color: #0c4a6e;
+}
+
+/* Subtle scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* ── FullCalendar overrides ──────────────────────────────── */
+
+.edu-calendar .fc {
+  --fc-border-color: #e2e8f0;
+  --fc-today-bg-color: #f0f9ff;
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: #f8fafc;
+  --fc-event-border-color: transparent;
+  --fc-now-indicator-color: #f87171;
+  --fc-small-font-size: 0.75rem;
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+}
+
+/* Day column headers */
+.edu-calendar .fc .fc-col-header-cell {
+  background: #f8fafc;
+}
+
+.edu-calendar .fc .fc-col-header-cell-cushion {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 10px 0;
+  text-decoration: none;
+}
+
+/* Time slot labels */
+.edu-calendar .fc .fc-timegrid-slot-label-cushion {
+  font-size: 0.6875rem;
+  color: #94a3b8;
+  padding-right: 8px;
+}
+
+/* Time grid slots */
+.edu-calendar .fc .fc-timegrid-slot {
+  height: 3rem;
+}
+
+/* Events */
+.edu-calendar .fc .fc-event {
+  border-radius: 6px;
+  border-left-width: 3px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease;
+}
+
+.edu-calendar .fc .fc-event:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.edu-calendar .fc .fc-timegrid-event .fc-event-main {
+  padding: 3px 6px;
+}
+
+.edu-calendar .fc .fc-timegrid-event .fc-event-title {
+  font-weight: 500;
+}
+
+.edu-calendar .fc .fc-timegrid-event .fc-event-time {
+  font-size: 0.625rem;
+  opacity: 0.8;
+}
+
+/* Month view day numbers */
+.edu-calendar .fc .fc-daygrid-day-number {
+  font-size: 0.8125rem;
+  color: #475569;
+  padding: 6px 8px;
+  text-decoration: none;
+}
+
+/* Today highlight in month view */
+.edu-calendar .fc .fc-day-today .fc-daygrid-day-number {
+  background: #0ea5e9;
+  color: white;
+  border-radius: 9999px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+/* Month view events */
+.edu-calendar .fc .fc-daygrid-event {
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
+.edu-calendar .fc .fc-daygrid-event .fc-event-title {
+  font-weight: 500;
+}
+
+/* List view */
+.edu-calendar .fc .fc-list-event-title {
+  font-weight: 500;
+}
+
+.edu-calendar .fc .fc-list-day-cushion {
+  background: #f8fafc;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+/* Now indicator line */
+.edu-calendar .fc .fc-timegrid-now-indicator-line {
+  border-color: #f87171;
+  border-width: 2px;
+}
+
+.edu-calendar .fc .fc-timegrid-now-indicator-arrow {
+  border-color: #f87171;
+}
+
+/* Remove default scrollgrid borders on outer edges */
+.edu-calendar .fc .fc-scrollgrid {
+  border: none;
+}
+
+/* More-link in month view */
+.edu-calendar .fc .fc-daygrid-more-link {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #0ea5e9;
 }

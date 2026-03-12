@@ -1,0 +1,288 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String    @id @default(cuid())
+  name           String?
+  email          String?   @unique
+  emailVerified  DateTime?
+  image          String?
+  role           String    @default("STUDENT")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  accounts       Account[]
+  sessions       Session[]
+  authenticator  Authenticator[]
+  students       Student[]
+}
+
+model Account {
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?
+  access_token       String?
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?
+  session_state      String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([sessionToken])
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+model Authenticator {
+  credentialID         String  @unique
+  userId               String
+  providerAccountId    String
+  credentialPublicKey  String
+  counter              Int
+  credentialDeviceType String
+  credentialBackedUp   Boolean
+  transports           String?
+  user                 User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, credentialID])
+}
+
+model Student {
+  id                  String               @id @default(cuid())
+  userId              String?
+  studentNumber       String               @unique
+  fullName            String
+  email               String               @unique
+  timezone            String               @default("Asia/Shanghai")
+  degreeProgram       String?
+  yearOfStudy         Int?
+  campus              String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  user                User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  timetables          Timetable[]
+  calendarEvents      CalendarEvent[]
+  scheduleChanges     ScheduleChange[]
+  emailProcessingLogs EmailProcessingLog[]
+
+  @@index([userId])
+}
+
+model Timetable {
+  id            String           @id @default(cuid())
+  studentId     String
+  name          String
+  source        String           @default("MANUAL")
+  semester      String?
+  isActive      Boolean          @default(true)
+  importedAt    DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  student       Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  entries       TimetableEntry[]
+  changes       ScheduleChange[]
+  calendarEvents CalendarEvent[]
+
+  @@index([studentId, isActive])
+}
+
+model TimetableEntry {
+  id              String      @id @default(cuid())
+  timetableId     String
+  moduleCode      String
+  moduleName      String
+  instructor      String?
+  location        String?
+  dayOfWeek       Int
+  startTime       String
+  endTime         String
+  startDate       DateTime?
+  endDate         DateTime?
+  weekPattern     String?
+  deliveryMode    String?
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  timetable       Timetable   @relation(fields: [timetableId], references: [id], onDelete: Cascade)
+  calendarEvents  CalendarEvent[]
+  scheduleChanges ScheduleChange[]
+
+  @@index([timetableId, dayOfWeek, startTime])
+}
+
+model CalendarEvent {
+  id                 String          @id @default(cuid())
+  studentId          String
+  timetableId        String?
+  timetableEntryId   String?
+  provider           String          @default("OUTLOOK")
+  providerEventId    String?
+  title              String
+  description        String?
+  location           String?
+  startsAt           DateTime
+  endsAt             DateTime
+  status             String          @default("SCHEDULED")
+  lastSyncedAt       DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  student            Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  timetable          Timetable?      @relation(fields: [timetableId], references: [id], onDelete: SetNull)
+  timetableEntry     TimetableEntry? @relation(fields: [timetableEntryId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, providerEventId])
+  @@index([studentId, startsAt])
+  @@index([timetableEntryId])
+}
+
+model ScheduleChange {
+  id                 String          @id @default(cuid())
+  studentId          String
+  timetableId        String?
+  timetableEntryId   String?
+  changeType         String
+  source             String          @default("EMAIL")
+  title              String
+  details            String?
+  effectiveFrom      DateTime?
+  effectiveUntil     DateTime?
+  detectedAt         DateTime        @default(now())
+  processedAt        DateTime?
+  status             String          @default("PENDING")
+  rawPayload         String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  student            Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  timetable          Timetable?      @relation(fields: [timetableId], references: [id], onDelete: SetNull)
+  timetableEntry     TimetableEntry? @relation(fields: [timetableEntryId], references: [id], onDelete: SetNull)
+
+  @@index([studentId, status, detectedAt])
+  @@index([timetableEntryId])
+}
+
+model EmailProcessingLog {
+  id               String    @id @default(cuid())
+  studentId        String?
+  provider         String    @default("MICROSOFT_GRAPH")
+  messageId        String
+  subject          String?
+  fromAddress      String?
+  receivedAt       DateTime?
+  processingStatus String    @default("RECEIVED")
+  matchedChangeId  String?
+  summary          String?
+  rawPayload       String?
+  errorMessage     String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  student          Student?  @relation(fields: [studentId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, messageId])
+  @@index([studentId, processingStatus])
+}
+
+model Task {
+  id            String   @id @default(cuid())
+  title         String
+  description   String?
+  owner         String
+  status        String   @default("BACKLOG")
+  priority      String   @default("P2")
+  dueAt         DateTime?
+  tags          String   @default("[]")
+  position      Int      @default(0)
+  deletedAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  lastUpdatedBy String   @default("SYSTEM")
+  activities    Activity[]
+
+  @@index([status, position])
+  @@index([deletedAt])
+  @@unique([title, owner, deletedAt])
+}
+
+model Activity {
+  id         String   @id @default(cuid())
+  taskId     String
+  actionType String
+  summary    String
+  diff       String?
+  actor      String
+  createdAt  DateTime @default(now())
+  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
+}
+
+model ContentItem {
+  id         String   @id @default(cuid())
+  title      String
+  ideaNotes  String?
+  script     String?
+  stage      String   @default("IDEAS")
+  owner      String
+  priority   String   @default("P2")
+  dueAt      DateTime?
+  tags       String   @default("[]")
+  position   Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  assets     ContentAsset[]
+  activities ContentActivity[]
+
+  @@index([stage, position])
+}
+
+model ContentAsset {
+  id            String   @id @default(cuid())
+  contentItemId String
+  filePath      String
+  caption       String?
+  createdAt     DateTime @default(now())
+  contentItem   ContentItem @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+
+  @@index([contentItemId, createdAt])
+}
+
+model ContentActivity {
+  id            String   @id @default(cuid())
+  contentItemId String
+  actionType    String
+  summary       String
+  diff          String?
+  actor         String
+  createdAt     DateTime @default(now())
+  contentItem   ContentItem @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+
+  @@index([contentItemId, createdAt])
+}
