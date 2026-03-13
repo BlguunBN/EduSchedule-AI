@@ -2,7 +2,7 @@ import { sampleEmailMessages } from "@/lib/edu-schedule/mock-data";
 import type { EmailMessage } from "@/lib/edu-schedule/types";
 
 export type EmailFetchOptions = {
-  provider?: "mock" | "gmail" | "imap";
+  provider?: "mock" | "gmail" | "imap" | "microsoft-graph";
   limit?: number;
 };
 

@@ -1,22 +1,16 @@
 import { prisma } from "@/lib/db";
+import { mapCalendarSource } from "@/lib/edu-schedule/calendar";
 import { ensureDemoStudent, ensureTimetableCalendar } from "@/lib/edu-schedule/demo-student";
-import type { CalendarEventSource } from "@/lib/edu-schedule/types";
+import { getMicrosoftGraphStatus } from "@/lib/edu-schedule/graph";
 
 export const dynamic = "force-dynamic";
-
-function mapCalendarSource(provider: string): CalendarEventSource {
-  if (provider === "LOCAL_TIMETABLE") return "TIMETABLE";
-  if (provider === "MICROSOFT_GRAPH") return "EMAIL";
-  if (provider === "LOCAL_MANUAL") return "MANUAL";
-  return "SYSTEM";
-}
 
 export async function getDemoDashboardSnapshot() {
   const student = await ensureDemoStudent();
   await ensureTimetableCalendar(student.id);
 
   const now = new Date();
-  const [activeTimetable, timetables, upcomingEvents, recentChanges, emailHistory] = await Promise.all([
+  const [activeTimetable, timetables, upcomingEvents, recentChanges, emailHistory, graphStatus] = await Promise.all([
     prisma.timetable.findFirst({
       where: { studentId: student.id, isActive: true },
       include: { entries: { orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }] } },
@@ -43,18 +37,39 @@ export async function getDemoDashboardSnapshot() {
       orderBy: [{ receivedAt: "desc" }, { createdAt: "desc" }],
       take: 12,
     }),
+    getMicrosoftGraphStatus(student.userId),
   ]);
 
   const pendingStatuses = new Set(["PENDING", "DETECTED"]);
+  const reviewQueue = recentChanges
+    .filter((item) => pendingStatuses.has(item.status))
+    .map((change) => {
+      const relatedLog = emailHistory.find((log) => log.matchedChangeId === change.id);
+      return {
+        id: change.id,
+        title: change.title,
+        status: change.status,
+        details: change.details,
+        detectedAt: change.detectedAt.toISOString(),
+        effectiveFrom: change.effectiveFrom?.toISOString(),
+        effectiveUntil: change.effectiveUntil?.toISOString(),
+        emailLogId: relatedLog?.id ?? null,
+        subject: relatedLog?.subject ?? change.title,
+        fromAddress: relatedLog?.fromAddress ?? null,
+        receivedAt: relatedLog?.receivedAt?.toISOString() ?? null,
+        processingStatus: relatedLog?.processingStatus ?? null,
+      };
+    });
 
   return {
     student,
+    graphStatus,
     metrics: {
       activeTimetables: timetables.filter((item) => item.isActive).length,
       timetableEntries: activeTimetable?.entries.length ?? 0,
       upcomingEvents: upcomingEvents.length,
       pendingChanges: recentChanges.filter((item) => pendingStatuses.has(item.status)).length,
-      processedEmails: emailHistory.filter((item) => item.processingStatus === "PROCESSED").length,
+      processedEmails: emailHistory.filter((item) => item.processingStatus !== "RECEIVED").length,
     },
     activeTimetable,
     timetables,
@@ -87,8 +102,9 @@ export async function getDemoDashboardSnapshot() {
       status: log.processingStatus,
       summary: log.summary,
       matchedChangeId: log.matchedChangeId,
-      receivedAt: log.receivedAt?.toISOString(),
+      receivedAt: log.receivedAt?.toISOString() ?? null,
       createdAt: log.createdAt.toISOString(),
     })),
+    reviewQueue,
   };
 }

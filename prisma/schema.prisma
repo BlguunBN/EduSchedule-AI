@@ -93,8 +93,25 @@ model Student {
   calendarEvents      CalendarEvent[]
   scheduleChanges     ScheduleChange[]
   emailProcessingLogs EmailProcessingLog[]
+  preferences         StudentPreferences?
 
   @@index([userId])
+}
+
+model StudentPreferences {
+  id                          String   @id @default(cuid())
+  studentId                   String   @unique
+  studySessionMinutes         Int      @default(90)
+  minimumFreeSlotMinutes      Int      @default(45)
+  preferredStudyStartTime     String   @default("09:00")
+  preferredStudyEndTime       String   @default("20:00")
+  preferredStudyLocation      String?
+  weekStartsOn                Int      @default(1)
+  includeWeekends             Boolean  @default(false)
+  digestNotificationsEnabled  Boolean  @default(true)
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+  student                     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
 }
 
 model Timetable {

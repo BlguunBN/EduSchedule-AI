@@ -2,23 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, CalendarRange, Home, Mail, TriangleAlert, Zap } from "lucide-react";
+import { Zap } from "lucide-react";
+import { dashboardNavItems } from "@/components/dashboard/nav-items";
 import { cn } from "@/lib/utils";
-
-type NavItem = {
-  href: string;
-  label: string;
-  icon: typeof Home;
-  exact?: boolean;
-};
-
-const navItems: NavItem[] = [
-  { href: "/dashboard", label: "Overview", icon: Home, exact: true },
-  { href: "/dashboard/timetable", label: "Timetables", icon: CalendarDays },
-  { href: "/dashboard/calendar", label: "Calendar", icon: CalendarRange },
-  { href: "/dashboard/changes", label: "Schedule Changes", icon: TriangleAlert },
-  { href: "/dashboard/email", label: "Email Intake", icon: Mail },
-];
 
 type Props = {
   displayName?: string;
@@ -29,8 +15,7 @@ export function DashboardSidebar({ displayName, initials }: Props) {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden lg:flex w-64 flex-none flex-col bg-slate-900 min-h-screen sticky top-0 h-screen overflow-y-auto">
-      {/* Branding */}
+    <aside className="sticky top-0 hidden h-screen min-h-screen w-64 flex-none flex-col overflow-y-auto bg-slate-900 lg:flex">
       <div className="border-b border-slate-800 px-5 py-5">
         <div className="flex items-center gap-2.5">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500 text-white">
@@ -43,13 +28,13 @@ export function DashboardSidebar({ displayName, initials }: Props) {
         </div>
       </div>
 
-      {/* Navigation */}
       <nav className="flex-1 space-y-0.5 px-3 py-4" aria-label="Dashboard navigation">
         <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
           Workspace
         </p>
-        {navItems.map(({ href, label, icon: Icon, exact }) => {
+        {dashboardNavItems.map(({ href, label, icon: Icon, exact }) => {
           const isActive = exact ? pathname === href : pathname.startsWith(href);
+
           return (
             <Link
               key={href}
@@ -71,16 +56,15 @@ export function DashboardSidebar({ displayName, initials }: Props) {
         })}
       </nav>
 
-      {/* Footer */}
       <div className="border-t border-slate-800 px-5 py-4">
-        {displayName && (
+        {displayName ? (
           <div className="mb-3 flex items-center gap-2.5">
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-700 text-xs font-semibold text-slate-200">
               {initials}
             </span>
-            <p className="text-xs font-medium text-slate-400 truncate">{displayName}</p>
+            <p className="truncate text-xs font-medium text-slate-400">{displayName}</p>
           </div>
-        )}
+        ) : null}
         <div className="flex items-center gap-2">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
           <p className="text-xs text-slate-600">Demo mode · local data</p>

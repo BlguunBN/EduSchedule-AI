@@ -36,9 +36,10 @@ export function Badge({
 /** Map a status string to a Badge variant */
 export function statusVariant(status: string): BadgeVariant {
   const s = status.toUpperCase();
-  if (s === "APPLIED" || s === "PROCESSED" || s === "COMPLETED") return "emerald";
-  if (s === "PENDING") return "sky";
-  if (s === "DETECTED" || s === "WARNING") return "amber";
+  if (s === "APPLIED" || s === "PROCESSED" || s === "COMPLETED" || s === "APPROVED" || s === "CONNECTED") return "emerald";
+  if (s === "PENDING" || s === "REVIEW_REQUIRED" || s === "READY_TO_CONNECT") return "sky";
+  if (s === "UNDONE") return "violet";
+  if (s === "DETECTED" || s === "WARNING" || s === "DISMISSED" || s === "NOT_CONFIGURED") return "amber";
   if (s === "FAILED" || s === "ERROR") return "red";
   return "default";
 }

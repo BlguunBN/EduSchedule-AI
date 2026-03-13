@@ -3,6 +3,16 @@ import { sampleCalendarEvents, sampleTimetableEntries } from "@/lib/edu-schedule
 
 const DEMO_EMAIL = "demo@eduschedule.local";
 const DEMO_STUDENT_NUMBER = "DEMO-001";
+const DEFAULT_PREFERENCES = {
+  studySessionMinutes: 90,
+  minimumFreeSlotMinutes: 45,
+  preferredStudyStartTime: "09:00",
+  preferredStudyEndTime: "20:00",
+  preferredStudyLocation: "Library Quiet Zone",
+  weekStartsOn: 1,
+  includeWeekends: false,
+  digestNotificationsEnabled: true,
+} as const;
 
 function parseTimeOnDate(base: Date, time: string) {
   const [hours, minutes] = time.split(":").map(Number);
@@ -96,6 +106,17 @@ export async function ensureDemoStudent() {
   return student;
 }
 
+export async function ensureStudentPreferences(studentId: string) {
+  return prisma.studentPreferences.upsert({
+    where: { studentId },
+    update: {},
+    create: {
+      studentId,
+      ...DEFAULT_PREFERENCES,
+    },
+  });
+}
+
 export async function ensureTimetableCalendar(studentId: string) {
   const activeTimetable = await prisma.timetable.findFirst({
     where: { studentId, isActive: true },
@@ -148,3 +169,5 @@ export async function ensureTimetableCalendar(studentId: string) {
 
   return activeTimetable;
 }
+
+export { DEFAULT_PREFERENCES };

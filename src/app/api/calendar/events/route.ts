@@ -1,10 +1,9 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { jsonError, jsonOk } from "@/lib/api";
-import { prisma } from "@/lib/db";
+import { createLocalEventWithHistory, getStudentCalendarEvents } from "@/lib/edu-schedule/calendar";
 import { ensureDemoStudent, ensureTimetableCalendar } from "@/lib/edu-schedule/demo-student";
 import { findFreeSlots } from "@/lib/edu-schedule/scheduling";
-import type { CalendarEvent } from "@/lib/edu-schedule/types";
 
 const eventCreateSchema = z
   .object({
@@ -29,38 +28,11 @@ export async function GET(req: NextRequest) {
     const end = req.nextUrl.searchParams.get("end");
     const minimumMinutes = Number(req.nextUrl.searchParams.get("minimumMinutes") ?? "30");
 
-    const where = {
-      studentId: student.id,
-      ...(start || end
-        ? {
-            startsAt: {
-              ...(start ? { gte: new Date(start) } : {}),
-              ...(end ? { lt: new Date(end) } : {}),
-            },
-          }
-        : {}),
-    };
-
-    const events = await prisma.calendarEvent.findMany({
-      where,
-      orderBy: { startsAt: "asc" },
-    });
-
-    const serialized: CalendarEvent[] = events.map((event) => ({
-      id: event.id,
-      title: event.title,
-      description: event.description ?? undefined,
-      startsAt: event.startsAt.toISOString(),
-      endsAt: event.endsAt.toISOString(),
-      location: event.location ?? undefined,
-      source:
-        event.provider === "LOCAL_TIMETABLE"
-          ? "TIMETABLE"
-          : event.provider === "MICROSOFT_GRAPH"
-            ? "EMAIL"
-            : "MANUAL",
-      tags: [event.provider.toLowerCase()],
-    }));
+    const serialized = await getStudentCalendarEvents(
+      student.id,
+      start ? new Date(start) : undefined,
+      end ? new Date(end) : undefined,
+    );
 
     const rangeStart = start ?? serialized[0]?.startsAt ?? new Date().toISOString();
     const rangeEnd =
@@ -86,46 +58,20 @@ export async function POST(req: NextRequest) {
     const student = await ensureDemoStudent();
     const payload = eventCreateSchema.parse(await req.json());
 
-    const created = await prisma.calendarEvent.create({
-      data: {
-        studentId: student.id,
-        provider: "LOCAL_MANUAL",
-        providerEventId: crypto.randomUUID(),
-        title: payload.title,
-        description: payload.description,
-        location: payload.location,
-        startsAt: new Date(payload.startsAt),
-        endsAt: new Date(payload.endsAt),
-        status: "SCHEDULED",
-      },
-    });
-
-    await prisma.scheduleChange.create({
-      data: {
-        studentId: student.id,
-        changeType: "CREATE",
-        source: payload.source,
-        title: payload.title,
-        details: payload.description,
-        effectiveFrom: created.startsAt,
-        effectiveUntil: created.endsAt,
-        status: "APPLIED",
-        rawPayload: JSON.stringify(payload),
-      },
+    const created = await createLocalEventWithHistory({
+      studentId: student.id,
+      title: payload.title,
+      description: payload.description,
+      location: payload.location,
+      startsAt: new Date(payload.startsAt),
+      endsAt: new Date(payload.endsAt),
+      source: payload.source,
     });
 
     return jsonOk(
       {
-        event: {
-          id: created.id,
-          title: created.title,
-          description: created.description ?? undefined,
-          startsAt: created.startsAt.toISOString(),
-          endsAt: created.endsAt.toISOString(),
-          location: created.location ?? undefined,
-          source: payload.source,
-          tags: ["manual"],
-        },
+        event: created.event,
+        changeId: created.changeId,
         persisted: true,
       },
       201,

@@ -1,11 +1,12 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { jsonError, jsonOk } from "@/lib/api";
+import { ApiError, jsonError, jsonOk } from "@/lib/api";
 import { prisma } from "@/lib/db";
 import { ensureDemoStudent } from "@/lib/edu-schedule/demo-student";
 import { fetchEmailMessages } from "@/lib/edu-schedule/email/fetch";
 import { classifyEmail } from "@/lib/edu-schedule/email/classify";
 import { extractActionItems, extractDates, extractLocations, summarizeEmail } from "@/lib/edu-schedule/email/extract";
+import { getMicrosoftGraphStatus } from "@/lib/edu-schedule/graph";
 import type { EmailMessage, EmailScanResult } from "@/lib/edu-schedule/types";
 
 const emailMessageSchema = z.object({
@@ -17,7 +18,7 @@ const emailMessageSchema = z.object({
 });
 
 const scanSchema = z.object({
-  provider: z.enum(["mock", "gmail", "imap"]).optional(),
+  provider: z.enum(["mock", "gmail", "imap", "microsoft-graph"]).optional(),
   limit: z.number().int().min(1).max(50).optional(),
   messages: z.array(emailMessageSchema).optional(),
   persistDetectedEvents: z.boolean().default(true),
@@ -36,39 +37,71 @@ function scanMessage(message: EmailMessage): EmailScanResult {
   };
 }
 
+function coerceEffectiveDate(candidate: string | undefined, fallbackIso: string) {
+  if (!candidate) return new Date(fallbackIso);
+
+  const isoDateOnly = /^\d{4}-\d{2}-\d{2}$/;
+  const isoDateTime = /^\d{4}-\d{2}-\d{2}T/;
+
+  if (isoDateOnly.test(candidate)) {
+    return new Date(`${candidate}T09:00:00.000Z`);
+  }
+
+  if (isoDateTime.test(candidate)) {
+    return new Date(candidate);
+  }
+
+  return new Date(fallbackIso);
+}
+
 async function persistScan(studentId: string, provider: string, results: EmailScanResult[]) {
   for (const result of results) {
-    const log = await prisma.emailProcessingLog.upsert({
+    const providerName = provider.toUpperCase();
+    const existingLog = await prisma.emailProcessingLog.findUnique({
       where: {
         provider_messageId: {
-          provider: provider.toUpperCase(),
+          provider: providerName,
           messageId: result.message.id,
         },
       },
-      update: {
-        subject: result.message.subject,
-        fromAddress: result.message.from,
-        receivedAt: new Date(result.message.receivedAt),
-        processingStatus: "PROCESSED",
-        summary: result.summary,
-        rawPayload: JSON.stringify(result),
-      },
-      create: {
-        studentId,
-        provider: provider.toUpperCase(),
-        messageId: result.message.id,
-        subject: result.message.subject,
-        fromAddress: result.message.from,
-        receivedAt: new Date(result.message.receivedAt),
-        processingStatus: "PROCESSED",
-        summary: result.summary,
-        rawPayload: JSON.stringify(result),
-      },
     });
+    const requiresReview = result.category === "SCHEDULING" || result.priority === "HIGH";
 
-    if (result.category === "SCHEDULING" || result.priority === "HIGH") {
+    const log =
+      existingLog
+        ? await prisma.emailProcessingLog.update({
+            where: { id: existingLog.id },
+            data: {
+              subject: result.message.subject,
+              fromAddress: result.message.from,
+              receivedAt: new Date(result.message.receivedAt),
+              processingStatus:
+                existingLog.processingStatus === "APPROVED" || existingLog.processingStatus === "DISMISSED"
+                  ? existingLog.processingStatus
+                  : requiresReview
+                    ? "REVIEW_REQUIRED"
+                    : "PROCESSED",
+              summary: result.summary,
+              rawPayload: JSON.stringify(result),
+            },
+          })
+        : await prisma.emailProcessingLog.create({
+            data: {
+              studentId,
+              provider: providerName,
+              messageId: result.message.id,
+              subject: result.message.subject,
+              fromAddress: result.message.from,
+              receivedAt: new Date(result.message.receivedAt),
+              processingStatus: requiresReview ? "REVIEW_REQUIRED" : "PROCESSED",
+              summary: result.summary,
+              rawPayload: JSON.stringify(result),
+            },
+          });
+
+    if (requiresReview && !log.matchedChangeId) {
       const firstDate = result.extractedDates[0];
-      const effectiveFrom = firstDate ? new Date(firstDate) : new Date(result.message.receivedAt);
+      const effectiveFrom = coerceEffectiveDate(firstDate, result.message.receivedAt);
       const change = await prisma.scheduleChange.create({
         data: {
           studentId,
@@ -114,6 +147,21 @@ export async function POST(req: NextRequest) {
     const student = await ensureDemoStudent();
     const payload = scanSchema.parse(await req.json().catch(() => ({})));
     const provider = payload.provider ?? "mock";
+    const graphStatus = await getMicrosoftGraphStatus(student.userId);
+
+    if (provider === "microsoft-graph" && !graphStatus.connected) {
+      throw new ApiError(409, "GRAPH_NOT_READY", graphStatus.message, graphStatus);
+    }
+
+    if (provider === "microsoft-graph") {
+      throw new ApiError(
+        501,
+        "GRAPH_NOT_IMPLEMENTED",
+        "Microsoft Graph mail fetch is not enabled in this local demo yet. Keep using mock inbox review until live sync is implemented.",
+        graphStatus,
+      );
+    }
+
     const messages = payload.messages ?? (await fetchEmailMessages({ provider, limit: payload.limit }));
     const results = messages.map(scanMessage);
 
@@ -127,6 +175,7 @@ export async function POST(req: NextRequest) {
       results,
       history: await getHistory(student.id),
       persisted: payload.persistDetectedEvents,
+      graphStatus,
     });
   } catch (error) {
     return jsonError(error);
@@ -138,11 +187,13 @@ export async function GET() {
     const student = await ensureDemoStudent();
     const history = await getHistory(student.id);
     const messages = await fetchEmailMessages({ provider: "mock", limit: 10 });
+    const graphStatus = await getMicrosoftGraphStatus(student.userId);
     return jsonOk({
       provider: "mock",
       count: messages.length,
       results: messages.map(scanMessage),
       history,
+      graphStatus,
     });
   } catch (error) {
     return jsonError(error);
