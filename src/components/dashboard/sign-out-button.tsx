@@ -3,9 +3,10 @@
 import { LogOut } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
+import { isDevAuthBypassPublicEnabled } from "@/lib/auth-config";
 
 export function SignOutButton() {
-  const bypassEnabled = process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === "true";
+  const bypassEnabled = isDevAuthBypassPublicEnabled();
 
   return (
     <Button

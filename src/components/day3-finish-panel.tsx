@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Save, ScanLine, Trash2 } from "lucide-react";
+import { AlertCircle, Plus, Save, ScanLine, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge, statusVariant } from "@/components/ui/badge";
@@ -38,12 +38,25 @@ type ExistingTimetable = {
   entries: TimetableEntry[];
 };
 
+type GraphStatus = {
+  state: "NOT_CONFIGURED" | "READY_TO_CONNECT" | "CONNECTED";
+  ready: boolean;
+  connected: boolean;
+  mode: "mock-only" | "ready" | "connected";
+  missingEnv: string[];
+  configuredEnv: string[];
+  connectedAccountCount: number;
+  message: string;
+};
+
 export function Day3FinishPanel({
   existingTimetables,
   existingEmailHistory,
+  graphStatus,
 }: {
   existingTimetables: ExistingTimetable[];
   existingEmailHistory: HistoryItem[];
+  graphStatus: GraphStatus;
 }) {
   const [entries, setEntries] = useState<TimetableEntry[]>(
     existingTimetables[0]?.entries ?? sampleTimetableEntries,
@@ -58,6 +71,10 @@ export function Day3FinishPanel({
   const [warnings, setWarnings] = useState<string[]>([]);
   const [saveState, setSaveState] = useState<string>("");
   const [scanState, setScanState] = useState<string>("");
+  const allowMock = process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === "true";
+  const [scanProvider, setScanProvider] = useState<"mock" | "microsoft-graph">(
+    graphStatus.connected || !allowMock ? "microsoft-graph" : "mock",
+  );
   const [emailResults, setEmailResults] = useState<EmailScanResult[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>(existingEmailHistory);
 
@@ -108,20 +125,27 @@ export function Day3FinishPanel({
   };
 
   const scanInbox = async () => {
-    setScanState("Scanning mock inbox…");
+    setScanState(
+      scanProvider === "microsoft-graph" ? "Scanning Microsoft inbox…" : "Scanning mock inbox…",
+    );
+
     const response = await fetch("/api/emails/scan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ provider: "mock", persistDetectedEvents: true }),
+      body: JSON.stringify({ provider: scanProvider, persistDetectedEvents: true }),
     });
+
     const result = await response.json();
-    if (response.ok) {
+    if (response.ok && result?.ok) {
       setEmailResults(result.data.results ?? []);
       setHistory(result.data.history ?? []);
-      setScanState(`Scanned ${result.data.count} messages.`);
-    } else {
-      setScanState("Inbox scan failed.");
+      setScanState(`Scanned ${result.data.count} messages from ${scanProvider}.`);
+      return;
     }
+
+    const message = result?.error?.message ?? "Inbox scan failed.";
+    const code = result?.error?.code ? ` [${result.error.code}]` : "";
+    setScanState(`${message}${code}`);
   };
 
   return (
@@ -337,11 +361,32 @@ export function Day3FinishPanel({
                 Run the email pipeline and persist processing history locally.
               </p>
             </div>
-            <Button size="sm" onClick={scanInbox}>
-              <ScanLine className="h-3.5 w-3.5" />
-              Scan inbox
-            </Button>
+            <div className="flex items-center gap-2">
+              <select
+                className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                value={scanProvider}
+                onChange={(e) => setScanProvider(e.target.value as "mock" | "microsoft-graph")}
+              >
+                {allowMock ? <option value="mock">Mock inbox</option> : null}
+                <option value="microsoft-graph">Microsoft Graph</option>
+              </select>
+              <Button size="sm" onClick={scanInbox}>
+                <ScanLine className="h-3.5 w-3.5" />
+                Scan inbox
+              </Button>
+            </div>
           </div>
+
+          {!graphStatus.connected && scanProvider === "microsoft-graph" && (
+            <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <p>
+                  Microsoft Graph is not connected yet. Either switch to Mock inbox, or complete tenant consent and sign-in first.
+                </p>
+              </div>
+            </div>
+          )}
 
           {scanState && (
             <p className="mt-3 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-500 border border-slate-100">

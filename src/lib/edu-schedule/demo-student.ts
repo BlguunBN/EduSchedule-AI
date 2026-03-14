@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/db";
-import { sampleCalendarEvents, sampleTimetableEntries } from "@/lib/edu-schedule/mock-data";
 
 const DEMO_EMAIL = "demo@eduschedule.local";
 const DEMO_STUDENT_NUMBER = "DEMO-001";
@@ -57,51 +56,6 @@ export async function ensureDemoStudent() {
         campus: "XJTLU",
       },
     }));
-
-  const timetableCount = await prisma.timetable.count({ where: { studentId: student.id } });
-  if (timetableCount === 0) {
-    const timetable = await prisma.timetable.create({
-      data: {
-        studentId: student.id,
-        name: "Starter Timetable",
-        source: "MANUAL",
-        semester: "Spring 2026",
-        importedAt: new Date(),
-      },
-    });
-
-    await prisma.timetableEntry.createMany({
-      data: sampleTimetableEntries.map((entry) => ({
-        timetableId: timetable.id,
-        moduleCode: entry.courseCode ?? entry.courseName.slice(0, 8).toUpperCase(),
-        moduleName: entry.courseName,
-        instructor: entry.instructor,
-        location: entry.location,
-        dayOfWeek: entry.dayOfWeek,
-        startTime: entry.startTime,
-        endTime: entry.endTime,
-        deliveryMode: "IN_PERSON",
-        notes: entry.raw ? JSON.stringify(entry.raw) : null,
-      })),
-    });
-  }
-
-  const eventCount = await prisma.calendarEvent.count({ where: { studentId: student.id } });
-  if (eventCount === 0) {
-    await prisma.calendarEvent.createMany({
-      data: sampleCalendarEvents.map((event) => ({
-        studentId: student.id,
-        provider: "LOCAL",
-        providerEventId: `seed-${event.id}`,
-        title: event.title,
-        description: event.description,
-        location: event.location,
-        startsAt: new Date(event.startsAt),
-        endsAt: new Date(event.endsAt),
-        status: "SCHEDULED",
-      })),
-    });
-  }
 
   return student;
 }

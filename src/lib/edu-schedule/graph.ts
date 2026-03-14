@@ -14,7 +14,6 @@ const PLACEHOLDER_VALUES = new Set([
   "placeholder-client-secret",
   "your-microsoft-client-id",
   "your-microsoft-client-secret",
-  "common",
 ]);
 
 export type MicrosoftGraphStatus = {

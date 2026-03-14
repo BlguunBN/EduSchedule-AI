@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/db";
-import { ensureDemoStudent } from "@/lib/edu-schedule/demo-student";
 import { Day3FinishPanel } from "@/components/day3-finish-panel";
+import { getMicrosoftGraphStatus } from "@/lib/edu-schedule/graph";
+import { requireCurrentStudent } from "@/lib/edu-schedule/current-student";
 
 export default async function TimetablePage() {
-  const student = await ensureDemoStudent();
+  const { user, student } = await requireCurrentStudent();
   const timetables = await prisma.timetable.findMany({
     where: { studentId: student.id },
     include: { entries: true },
@@ -11,11 +12,16 @@ export default async function TimetablePage() {
     take: 5,
   });
 
+  const allowMock = process.env.DEV_AUTH_BYPASS === "true";
   const history = await prisma.emailProcessingLog.findMany({
-    where: { studentId: student.id },
+    where: {
+      studentId: student.id,
+      ...(allowMock ? {} : { provider: "MICROSOFT-GRAPH" }),
+    },
     orderBy: { createdAt: "desc" },
     take: 10,
   });
+  const graphStatus = await getMicrosoftGraphStatus(user.id);
 
   return <Day3FinishPanel existingTimetables={timetables.map((tt) => ({
     id: tt.id,
@@ -39,5 +45,5 @@ export default async function TimetablePage() {
     receivedAt: log.receivedAt?.toISOString(),
     status: log.processingStatus,
     summary: log.summary,
-  }))} />;
+  }))} graphStatus={graphStatus} />;
 }
