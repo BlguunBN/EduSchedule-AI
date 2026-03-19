@@ -35,6 +35,11 @@ export function isMicrosoftAuthConfigured() {
   return getMicrosoftAuthConfigStatus().configured;
 }
 
+/**
+ * Returns true only in non-production environments when the public opt-in flag is set.
+ * Safe to use in client components; always false in production builds.
+ */
 export function isDevAuthBypassPublicEnabled() {
+  if (process.env.NODE_ENV === "production") return false;
   return process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === "true";
 }

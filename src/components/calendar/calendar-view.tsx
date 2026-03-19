@@ -47,7 +47,8 @@ export function CalendarView({ events, freeSlots }: Props) {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => setMounted(true), []);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- standard SSR hydration guard
+  useEffect(() => { setMounted(true); }, []);
 
   const api = () => calRef.current?.getApi();
 
@@ -64,26 +65,23 @@ export function CalendarView({ events, freeSlots }: Props) {
     setActiveView(arg.view.type as ViewType);
   }, []);
 
-  const handleEventClick = useCallback(
-    (arg: EventClickArg) => {
-      const props = arg.event.extendedProps;
-      const match = events.find((e) => e.id === arg.event.id);
-      if (match) setSelectedEvent(match);
-      else {
-        setSelectedEvent({
-          id: arg.event.id,
-          title: arg.event.title,
-          startsAt: arg.event.startStr,
-          endsAt: arg.event.endStr,
-          location: props.location,
-          source: props.source ?? "SYSTEM",
-          description: props.description,
-          tags: props.tags ?? [],
-        });
-      }
-    },
-    [events],
-  );
+  const handleEventClick = (arg: EventClickArg) => {
+    const props = arg.event.extendedProps;
+    const match = events.find((e) => e.id === arg.event.id);
+    if (match) setSelectedEvent(match);
+    else {
+      setSelectedEvent({
+        id: arg.event.id,
+        title: arg.event.title,
+        startsAt: arg.event.startStr,
+        endsAt: arg.event.endStr,
+        location: props.location,
+        source: props.source ?? "SYSTEM",
+        description: props.description,
+        tags: props.tags ?? [],
+      });
+    }
+  };
 
   const fcEvents = events.map((event) => {
     const style = SOURCE_STYLE[event.source] ?? SOURCE_STYLE.SYSTEM;

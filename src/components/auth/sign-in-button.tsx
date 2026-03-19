@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { LoaderCircle, LogIn } from "lucide-react";
-import { signIn } from "next-auth/react";
+import { signIn, signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 
 export function SignInButton() {
@@ -15,6 +15,9 @@ export function SignInButton() {
       onClick={async () => {
         try {
           setIsLoading(true);
+          // Clear any existing session first (including stale demo-linked session)
+          // so Microsoft account switching always starts fresh.
+          await signOut({ redirect: false });
           await signIn("microsoft-entra-id", { callbackUrl: "/dashboard" });
         } finally {
           setIsLoading(false);

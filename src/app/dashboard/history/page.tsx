@@ -1,11 +1,11 @@
 import { HistoryPanel } from "@/components/dashboard/history-panel";
-import { ensureDemoStudent } from "@/lib/edu-schedule/demo-student";
+import { requireCurrentStudent } from "@/lib/edu-schedule/current-student";
 import { listStudentHistory } from "@/lib/edu-schedule/history";
 
 export const dynamic = "force-dynamic";
 
 export default async function HistoryPage() {
-  const student = await ensureDemoStudent();
+  const { student } = await requireCurrentStudent();
   const history = await listStudentHistory(student.id);
 
   return (
@@ -16,7 +16,7 @@ export default async function HistoryPage() {
           Schedule change history
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Review detected changes, manual calendar additions, and reversible demo actions in one place.
+          Review detected changes, manual calendar additions, and reversible actions in one place.
         </p>
       </div>
 

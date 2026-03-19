@@ -14,8 +14,19 @@ export default async function LoginPage({
 }) {
   const bypassEnabled = isDevAuthBypassEnabled();
   const microsoft = getMicrosoftAuthConfigStatus();
-  const session = bypassEnabled ? null : await auth();
   const params = (await searchParams) ?? {};
+
+  let session: { user?: unknown } | null = null;
+  let sessionError = false;
+
+  if (!bypassEnabled) {
+    try {
+      session = await auth();
+    } catch (error) {
+      sessionError = true;
+      console.error("[login] auth() failed", error);
+    }
+  }
 
   if (session?.user) {
     redirect("/dashboard");
@@ -33,7 +44,7 @@ export default async function LoginPage({
           <div className="text-center">
             <p className="text-xs font-semibold uppercase tracking-widest text-sky-600">EduScheduleAI</p>
             <h1 className="mt-1.5 text-xl font-bold tracking-tight text-slate-900">
-              Sign in to your workspace
+              Sign in to get started
             </h1>
           </div>
         </div>
@@ -42,10 +53,12 @@ export default async function LoginPage({
         <div className="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
           <p className="text-center text-sm leading-6 text-slate-500">
             {bypassEnabled
-              ? "Local demo mode is active. Open the dashboard directly to test the full flow without Microsoft sign-in."
+              ? microsoft.configured
+                ? "Demo mode is available. You can use demo access or sign in with your Microsoft account."
+                : "Demo mode is on — go straight to the dashboard, no Microsoft account needed."
               : microsoft.configured
-                ? "Use your university Microsoft account to access your student workspace."
-                : "Microsoft sign-in is not configured yet for this local app instance."}
+                ? "Use your university Microsoft account. Sign-in takes about 10 seconds."
+                : "Microsoft sign-in isn't set up for this instance yet."}
           </p>
 
           {!bypassEnabled && !microsoft.configured && (
@@ -53,48 +66,61 @@ export default async function LoginPage({
               <div className="flex items-start gap-2">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                 <div>
-                  <p className="font-semibold">Outlook auth setup is incomplete</p>
-                  <p className="mt-1">Missing or placeholder env keys: {microsoft.missing.join(", ")}</p>
-                  <p className="mt-1">Add real Microsoft Entra app values in <code className="rounded bg-white px-1 py-0.5">.env</code>, then restart the dev server.</p>
+                  <p className="font-semibold">Microsoft sign-in not configured</p>
+                  <p className="mt-1">Missing env keys: {microsoft.missing.join(", ")}</p>
+                  <p className="mt-1">Add your Microsoft Entra app credentials to <code className="rounded bg-white px-1 py-0.5">.env</code> and restart the server.</p>
                 </div>
               </div>
             </div>
           )}
 
-          {params.error && !bypassEnabled && (
+          {sessionError && !bypassEnabled && (
             <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-left text-xs text-rose-800">
-              <p className="font-semibold">Sign-in failed</p>
-              <p className="mt-1">Error: {params.error}</p>
+              <p className="font-semibold">Login is temporarily unavailable</p>
+              <p className="mt-1">
+                We couldn&apos;t read your sign-in session from the database. Check your database connection
+                settings, then refresh this page.
+              </p>
             </div>
           )}
 
-          <div className="mt-6">
-            {bypassEnabled ? (
-              <Link href="/dashboard" className="block">
-                <Button variant="primary" className="w-full h-10">
-                  Enter demo dashboard
-                </Button>
-              </Link>
-            ) : microsoft.configured ? (
-              <SignInButton />
-            ) : (
+          {params.error && !bypassEnabled && (
+            <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-left text-xs text-rose-800">
+              <p className="font-semibold">Couldn&apos;t sign you in</p>
+              <p className="mt-1">
+                {params.error === "OAuthSignin" || params.error === "OAuthCallback"
+                  ? "Something went wrong with Microsoft sign-in. Please try again."
+                  : params.error === "AccessDenied"
+                    ? "Access was denied. Make sure you're using your university account."
+                    : `Sign-in error: ${params.error}. Please try again or contact support.`}
+              </p>
+            </div>
+          )}
+
+          <div className="mt-6 space-y-3">
+            {microsoft.configured ? <SignInButton /> : (
               <Button variant="primary" className="w-full h-10" disabled>
                 Outlook sign-in unavailable
               </Button>
             )}
+
+            {bypassEnabled && (
+              <Link href="/dashboard" className="block">
+                <Button variant="outline" className="w-full h-10">
+                  Enter demo dashboard
+                </Button>
+              </Link>
+            )}
           </div>
 
-          {!bypassEnabled && (
+          {process.env.NODE_ENV !== "production" && !bypassEnabled && (
             <p className="mt-5 text-center text-xs text-slate-400">
               For local dev, set{" "}
               <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-slate-600">
-                NEXT_PUBLIC_DEV_AUTH_BYPASS=true
-              </code>
-              {" "}and{" "}
-              <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-slate-600">
                 DEV_AUTH_BYPASS=true
               </code>
-              .
+              {" "}in your <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-slate-600">.env</code> file.
+              This flag has no effect in production builds.
             </p>
           )}
         </div>

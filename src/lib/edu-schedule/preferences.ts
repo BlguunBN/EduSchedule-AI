@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { ensureDemoStudent, ensureStudentPreferences } from "@/lib/edu-schedule/demo-student";
+import { ensureStudentPreferences } from "@/lib/edu-schedule/demo-student";
 
 export const studentPreferencesSchema = z.object({
   studySessionMinutes: z.number().int().min(30).max(240),
@@ -38,26 +38,50 @@ export function serializePreferences(
   };
 }
 
+/**
+ * Get preferences for a specific student (by ID).
+ * Used in routes that already have a studentId from requireCurrentStudent().
+ */
+export async function getStudentPreferences(studentId: string) {
+  const preferences = await ensureStudentPreferences(studentId);
+  return serializePreferences(preferences);
+}
+
+/**
+ * Update preferences for a specific student.
+ */
+export async function updateStudentPreferences(studentId: string, input: StudentPreferencesInput) {
+  const preferences = await prisma.studentPreferences.upsert({
+    where: { studentId },
+    update: input,
+    create: {
+      studentId,
+      ...input,
+    },
+  });
+  return serializePreferences(preferences);
+}
+
+// ─── Legacy exports (preserved for backward-compat, remove in Phase B) ────────
+
+/**
+ * @deprecated Use getStudentPreferences(studentId) with requireCurrentStudent() instead.
+ */
 export async function getDemoStudentPreferences() {
+  const { ensureDemoStudent } = await import("@/lib/edu-schedule/demo-student");
   const student = await ensureDemoStudent();
   const preferences = await ensureStudentPreferences(student.id);
-
   return {
     student,
     preferences: serializePreferences(preferences),
   };
 }
 
+/**
+ * @deprecated Use updateStudentPreferences(studentId, input) with requireCurrentStudent() instead.
+ */
 export async function updateDemoStudentPreferences(input: StudentPreferencesInput) {
+  const { ensureDemoStudent } = await import("@/lib/edu-schedule/demo-student");
   const student = await ensureDemoStudent();
-  const preferences = await prisma.studentPreferences.upsert({
-    where: { studentId: student.id },
-    update: input,
-    create: {
-      studentId: student.id,
-      ...input,
-    },
-  });
-
-  return serializePreferences(preferences);
+  return updateStudentPreferences(student.id, input);
 }

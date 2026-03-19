@@ -94,6 +94,7 @@ model Student {
   scheduleChanges     ScheduleChange[]
   emailProcessingLogs EmailProcessingLog[]
   preferences         StudentPreferences?
+  reminders           Reminder[]
 
   @@index([userId])
 }
@@ -302,4 +303,32 @@ model ContentActivity {
   contentItem   ContentItem @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
 
   @@index([contentItemId, createdAt])
+}
+
+// ─── Reminder Scheduling (MVP) ───────────────────────────────────────────────
+// Tracks deadline-based reminders: 7d / 3d / 1d / day-of.
+// Delivery channels: IN_APP (default) | EMAIL_DIGEST
+// Status machine: PENDING → PROCESSING → SENT | FAILED → DISMISSED
+model Reminder {
+  id                String    @id @default(cuid())
+  studentId         String
+  sourceType        String    @default("DEADLINE")   // DEADLINE | SCHEDULE_CHANGE
+  sourceId          String?                           // calendarEvent.id or scheduleChange.id
+  title             String
+  body              String?
+  dueAt             DateTime                          // the original deadline
+  sendAt            DateTime                          // computed trigger time
+  offsetLabel       String                            // "7d" | "3d" | "1d" | "day-of"
+  channel           String    @default("IN_APP")      // IN_APP | EMAIL_DIGEST
+  status            String    @default("PENDING")     // PENDING | PROCESSING | SENT | FAILED | DISMISSED
+  deliveryAttempts  Int       @default(0)             // incremented on each dispatch attempt
+  lastError         String?                           // last error message if FAILED
+  sentAt            DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  student           Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, sourceId, offsetLabel])
+  @@index([studentId, status, sendAt])
+  @@index([sendAt, status])
 }

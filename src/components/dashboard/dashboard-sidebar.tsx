@@ -9,9 +9,10 @@ import { cn } from "@/lib/utils";
 type Props = {
   displayName?: string;
   initials?: string;
+  isDemoMode?: boolean;
 };
 
-export function DashboardSidebar({ displayName, initials }: Props) {
+export function DashboardSidebar({ displayName, initials, isDemoMode = false }: Props) {
   const pathname = usePathname();
 
   return (
@@ -40,7 +41,7 @@ export function DashboardSidebar({ displayName, initials }: Props) {
               key={href}
               href={href}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                "flex min-h-[40px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150",
                 isActive
                   ? "bg-sky-500/15 text-sky-400"
                   : "text-slate-400 hover:bg-slate-800 hover:text-slate-100",
@@ -66,8 +67,10 @@ export function DashboardSidebar({ displayName, initials }: Props) {
           </div>
         ) : null}
         <div className="flex items-center gap-2">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-          <p className="text-xs text-slate-600">Demo mode · local data</p>
+          <span className={`h-1.5 w-1.5 rounded-full ${isDemoMode ? "bg-amber-400" : "bg-emerald-500"}`} />
+          <p className="text-xs text-slate-600">
+            {isDemoMode ? "Demo mode · local data" : "Connected · Microsoft"}
+          </p>
         </div>
       </div>
     </aside>

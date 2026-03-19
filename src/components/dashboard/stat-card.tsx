@@ -33,7 +33,7 @@ export function StatCard({
   return (
     <div
       className={cn(
-        "rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm border-l-4",
+        "rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm border-l-4 transition-shadow duration-150 hover:shadow-md",
         accentBorder[accent],
       )}
     >

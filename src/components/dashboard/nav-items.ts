@@ -1,4 +1,5 @@
 import {
+  Bell,
   CalendarDays,
   CalendarRange,
   Home,
@@ -20,6 +21,7 @@ export const dashboardNavItems: DashboardNavItem[] = [
   { href: "/dashboard", label: "Overview", icon: Home, exact: true },
   { href: "/dashboard/timetable", label: "Timetables", icon: CalendarDays },
   { href: "/dashboard/calendar", label: "Calendar", icon: CalendarRange },
+  { href: "/dashboard/reminders", label: "Reminders", icon: Bell },
   { href: "/dashboard/history", label: "History", icon: TriangleAlert },
   { href: "/dashboard/email", label: "Email", icon: Mail },
   { href: "/dashboard/chat", label: "Chat", icon: MessageSquare },

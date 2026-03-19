@@ -2,7 +2,8 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { jsonError, jsonOk } from "@/lib/api";
 import { prisma } from "@/lib/db";
-import { ensureDemoStudent, ensureTimetableCalendar } from "@/lib/edu-schedule/demo-student";
+import { requireCurrentStudent } from "@/lib/edu-schedule/current-student";
+import { ensureTimetableCalendar } from "@/lib/edu-schedule/demo-student";
 import { parseTimetableInput } from "@/lib/edu-schedule/timetable-parsers";
 
 const manualEntrySchema = z.object({
@@ -25,7 +26,7 @@ const saveSchema = z.object({
 
 export async function GET() {
   try {
-    const student = await ensureDemoStudent();
+    const { student } = await requireCurrentStudent();
     const timetables = await prisma.timetable.findMany({
       where: { studentId: student.id },
       include: { entries: true },
@@ -58,7 +59,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const student = await ensureDemoStudent();
+    const { student } = await requireCurrentStudent();
     const payload = saveSchema.parse(await req.json());
     const parsedEntries = payload.entries ?? (payload.kind && payload.payload ? parseTimetableInput(payload.kind, payload.payload).entries : []);
 

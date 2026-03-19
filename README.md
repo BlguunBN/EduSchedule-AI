@@ -30,7 +30,7 @@ What is still partial / scaffolded:
 - **Next.js 16** (App Router)
 - **TypeScript**
 - **Prisma**
-- **SQLite** for local demo data
+- **Supabase Postgres** (Prisma + PostgreSQL)
 - **NextAuth v5 beta**
 - **Microsoft Graph SDK / MSAL**
 - **Tailwind CSS**
@@ -104,16 +104,52 @@ npm install
 
 Copy `.env.example` to `.env` and adjust values.
 
-Minimum local setup:
+> Supabase DB setup guide: `docs/SUPABASE_DB_SETUP.md`
+
+#### Local dev (no Microsoft account needed)
 
 ```env
-DATABASE_URL="file:./dev.db"
-AUTH_SECRET="replace-with-a-long-random-string"
-AUTH_MICROSOFT_CLIENT_ID="your-microsoft-client-id"
-AUTH_MICROSOFT_CLIENT_SECRET="your-microsoft-client-secret"
+# Supabase pooled runtime URL
+DATABASE_URL="postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1&sslmode=require"
+# Supabase direct migration URL
+DIRECT_URL="postgresql://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres?sslmode=require"
+AUTH_SECRET="any-long-random-string-32-chars-min"
+# Leave Microsoft keys blank to use demo-only mode
+AUTH_MICROSOFT_CLIENT_ID=""
+AUTH_MICROSOFT_CLIENT_SECRET=""
 AUTH_MICROSOFT_TENANT_ID="common"
-DEV_AUTH_BYPASS="true"
+# Enable the dev bypass to skip real sign-in; automatically disabled in production
+DEV_AUTH_BYPASS=true
+NEXT_PUBLIC_DEV_AUTH_BYPASS=true
 ```
+
+#### Local dev with real Microsoft sign-in
+
+```env
+# Supabase pooled runtime URL
+DATABASE_URL="postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1&sslmode=require"
+# Supabase direct migration URL
+DIRECT_URL="postgresql://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres?sslmode=require"
+AUTH_SECRET="any-long-random-string-32-chars-min"
+AUTH_MICROSOFT_CLIENT_ID="<your-entra-app-client-id>"
+AUTH_MICROSOFT_CLIENT_SECRET="<your-entra-app-client-secret>"
+AUTH_MICROSOFT_TENANT_ID="common"          # or your tenant GUID
+DEV_AUTH_BYPASS=false
+NEXT_PUBLIC_DEV_AUTH_BYPASS=false
+```
+
+#### Production (Vercel / hosted)
+
+```env
+DATABASE_URL="<postgres-connection-string>"
+AUTH_SECRET="<64-char-random-secret>"
+AUTH_MICROSOFT_CLIENT_ID="<your-entra-app-client-id>"
+AUTH_MICROSOFT_CLIENT_SECRET="<your-entra-app-client-secret>"
+AUTH_MICROSOFT_TENANT_ID="<your-tenant-id>"
+# DO NOT set DEV_AUTH_BYPASS in production; the app guards it with NODE_ENV checks
+```
+
+> **Security note:** `DEV_AUTH_BYPASS=true` is blocked in production by a `NODE_ENV === "production"` guard in code — it has no effect even if accidentally set.
 
 ### 3. Prepare database + demo data
 
@@ -250,11 +286,20 @@ Use this when showing the prototype.
 
 ## Known limitations
 
-- real Microsoft auth is not fully production-finished
-- live inbox/calendar sync needs more hardening
-- Prisma provider is currently configured for SQLite in local development
-- deployment flow still needs final real-world verification
+- live inbox/calendar sync with real Outlook needs production verification
+- Prisma provider is SQLite for local dev; swap to Postgres for production
+- deployment flow still needs final real-world end-to-end testing
 - some features are intentionally demo-scoped instead of fully automated
+
+## Auth hardening (Phase A, part 1 — done)
+
+The following production-readiness changes were applied:
+
+- `DEV_AUTH_BYPASS` is now blocked by `NODE_ENV === "production"` in code — cannot be accidentally active in production
+- All API routes (`/api/timetable`, `/api/calendar/events`, `/api/calendar/events/ics`, `/api/chat`, `/api/history`, `/api/settings`) now call `requireCurrentStudent()` instead of always falling back to the demo student
+- `requireCurrentStudent()` respects `DEV_AUTH_BYPASS` in non-production environments only; in production it always requires a real NextAuth session
+- Middleware now covers `/api/*` routes (except `/api/auth`) and returns a 401 JSON response if no session is present and bypass is off
+- Login page dev hint is hidden in production builds
 
 ---
 

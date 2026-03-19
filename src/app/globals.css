@@ -38,6 +38,30 @@ body {
   color: #0c4a6e;
 }
 
+/* Body text line-height for readability */
+p, li, dd, dt {
+  line-height: 1.6;
+}
+
+/* z-index scale */
+:root {
+  --z-dropdown: 10;
+  --z-sticky: 20;
+  --z-fixed: 30;
+  --z-modal-backdrop: 40;
+  --z-modal: 50;
+}
+
+/* Reduced motion: disable all transitions/animations */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Subtle scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
@@ -101,6 +125,12 @@ body {
   font-size: 0.75rem;
   cursor: pointer;
   transition: box-shadow 0.15s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edu-calendar .fc .fc-event {
+    transition: none;
+  }
 }
 
 .edu-calendar .fc .fc-event:hover {

@@ -2,7 +2,8 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { jsonError, jsonOk } from "@/lib/api";
 import { runLocalChatCommand } from "@/lib/edu-schedule/chat";
-import { ensureDemoStudent, ensureStudentPreferences, ensureTimetableCalendar } from "@/lib/edu-schedule/demo-student";
+import { requireCurrentStudent } from "@/lib/edu-schedule/current-student";
+import { ensureStudentPreferences, ensureTimetableCalendar } from "@/lib/edu-schedule/demo-student";
 
 const chatRequestSchema = z.object({
   message: z.string().trim().min(1).max(1000),
@@ -10,7 +11,7 @@ const chatRequestSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const student = await ensureDemoStudent();
+    const { student } = await requireCurrentStudent();
     await ensureTimetableCalendar(student.id);
     const preferences = await ensureStudentPreferences(student.id);
     const payload = chatRequestSchema.parse(await req.json());

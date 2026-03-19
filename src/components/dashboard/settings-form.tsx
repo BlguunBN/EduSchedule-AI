@@ -151,7 +151,7 @@ export function SettingsForm({
           />
           <ToggleCard
             title="Digest notifications"
-            description="Keeps the demo settings close to a realistic product model for future reminders."
+            description="Receive a daily summary of upcoming deadlines and schedule changes."
             checked={form.digestNotificationsEnabled}
             onChange={(checked) => update("digestNotificationsEnabled", checked)}
           />
@@ -159,7 +159,7 @@ export function SettingsForm({
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
           <p className="text-sm text-slate-500">
-            These settings are stored in SQLite and used by the local chat assistant.
+            These preferences are saved to your profile and used by the AI scheduling assistant.
           </p>
           <Button type="submit" disabled={saving}>
             <Save className="h-4 w-4" />

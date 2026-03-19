@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { Download } from "lucide-react";
 import { CalendarView } from "@/components/calendar/calendar-view";
-import { getDemoDashboardSnapshot } from "@/lib/edu-schedule/dashboard-data";
+import { requireCurrentStudent } from "@/lib/edu-schedule/current-student";
+import { getDashboardSnapshot } from "@/lib/edu-schedule/dashboard-data";
 import { findFreeSlots } from "@/lib/edu-schedule/scheduling";
 
 export const dynamic = "force-dynamic";
 
 export default async function CalendarPage() {
-  const data = await getDemoDashboardSnapshot();
+  const { student } = await requireCurrentStudent();
+  const data = await getDashboardSnapshot(student.id);
 
   const events = data.upcomingEvents.map((event) => ({
     id: event.id,

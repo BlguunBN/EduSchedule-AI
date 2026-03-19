@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CheckCircle2, CircleAlert, Link2, Mail, PlugZap, XCircle } from "lucide-react";
+import { CheckCircle2, CircleAlert, Link2, Mail, PlugZap, RefreshCw, XCircle } from "lucide-react";
 import { Badge, statusVariant } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast-provider";
@@ -42,6 +42,13 @@ type EmailHistoryItem = {
   createdAt: string;
 };
 
+type ScanMeta = {
+  provider: string;
+  count: number;
+  limit: number;
+  scanAt: string;
+};
+
 export function EmailReviewPanel({
   initialReviewQueue,
   initialHistory,
@@ -54,7 +61,40 @@ export function EmailReviewPanel({
   const [reviewQueue, setReviewQueue] = useState(initialReviewQueue);
   const [history, setHistory] = useState(initialHistory);
   const [actingId, setActingId] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanMeta, setScanMeta] = useState<ScanMeta | null>(null);
   const { pushToast } = useToast();
+
+  async function runScan() {
+    setScanning(true);
+    try {
+      const response = await fetch("/api/emails/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ persistDetectedEvents: true }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error?.message ?? "Scan failed");
+      }
+      const { provider, count, limit, scanAt, history: freshHistory } = result.data;
+      setScanMeta({ provider, count, limit, scanAt });
+      if (freshHistory) setHistory(freshHistory);
+      pushToast({
+        title: "Scan complete",
+        description: `${count} email${count !== 1 ? "s" : ""} fetched via ${provider}`,
+        variant: "success",
+      });
+    } catch (error) {
+      pushToast({
+        title: "Scan failed",
+        description: error instanceof Error ? error.message : "Try again",
+        variant: "error",
+      });
+    } finally {
+      setScanning(false);
+    }
+  }
 
   const metrics = useMemo(
     () => ({
@@ -111,6 +151,31 @@ export function EmailReviewPanel({
 
   return (
     <div className="space-y-8">
+      {/* Scan controls */}
+      <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div>
+          <p className="text-sm font-semibold text-slate-900">Inbox scan</p>
+          {scanMeta ? (
+            <p className="mt-0.5 text-xs text-slate-500">
+              Last scan: {new Date(scanMeta.scanAt).toLocaleString()} · Provider:{" "}
+              <span className="font-medium text-slate-700">{scanMeta.provider}</span> · Fetched{" "}
+              {scanMeta.count}/{scanMeta.limit}
+            </p>
+          ) : (
+            <p className="mt-0.5 text-xs text-slate-400">Run a scan to fetch the latest emails from Microsoft Graph.</p>
+          )}
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          disabled={scanning || !graphStatus.connected}
+          onClick={runScan}
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${scanning ? "animate-spin" : ""}`} />
+          {scanning ? "Scanning…" : "Scan inbox"}
+        </Button>
+      </section>
+
       <section className="grid gap-3 md:grid-cols-4">
         <MetricCard label="Saved logs" value={metrics.savedLogs} icon={Mail} />
         <MetricCard label="Needs review" value={metrics.reviewRequired} icon={CircleAlert} />
@@ -155,8 +220,8 @@ export function EmailReviewPanel({
         <div className="mt-4 space-y-3">
           {reviewQueue.length === 0 ? (
             <EmptyState
-              label="No pending review items"
-              hint="Run the mock inbox scan from the timetable workspace to create reviewable email changes."
+              label="Nothing to review"
+              hint="When we detect a schedule change in your inbox, it will appear here for you to approve or dismiss before your calendar updates."
             />
           ) : (
             reviewQueue.map((item) => (
@@ -217,7 +282,7 @@ export function EmailReviewPanel({
         <h2 className="text-sm font-semibold text-slate-900">Processing history</h2>
         <div className="mt-4 space-y-2">
           {history.length === 0 ? (
-            <EmptyState label="No email scan history yet" hint="Use the timetable workspace to trigger an inbox scan." />
+            <EmptyState label="No scans yet" hint="Run an inbox scan from the Email tab to process your academic emails." />
           ) : (
             history.map((item) => (
               <div

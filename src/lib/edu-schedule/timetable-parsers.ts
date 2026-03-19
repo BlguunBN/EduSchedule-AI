@@ -99,6 +99,7 @@ export function parseIcsTimetable(icsText: string): TimetableParseResult {
   return { kind: "ics", entries, warnings };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function parseTimetableImage(_base64OrUrl: string): TimetableParseResult {
   return {
     kind: "image",

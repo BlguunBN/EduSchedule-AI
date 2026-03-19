@@ -1,10 +1,12 @@
 import { SettingsForm } from "@/components/dashboard/settings-form";
-import { getDemoStudentPreferences } from "@/lib/edu-schedule/preferences";
+import { requireCurrentStudent } from "@/lib/edu-schedule/current-student";
+import { getStudentPreferences } from "@/lib/edu-schedule/preferences";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const { student, preferences } = await getDemoStudentPreferences();
+  const { student } = await requireCurrentStudent();
+  const preferences = await getStudentPreferences(student.id);
 
   return (
     <div className="space-y-6">
@@ -14,7 +16,7 @@ export default async function SettingsPage() {
           Student preferences
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Persist your study defaults in SQLite so the chat assistant and scheduling helpers behave consistently.
+          Persist your study defaults so the chat assistant and scheduling helpers behave consistently.
         </p>
       </div>
 

@@ -21,9 +21,9 @@ export default function DashboardError({
         <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
           <AlertTriangle className="h-6 w-6" />
         </span>
-        <h2 className="mt-4 text-xl font-semibold text-slate-900">Dashboard error</h2>
+        <h2 className="mt-4 text-xl font-semibold text-slate-900">Something went wrong</h2>
         <p className="mt-2 text-sm leading-relaxed text-slate-500">
-          Something went wrong while loading this dashboard area. Retry the route, or go back to the overview.
+          We couldn&apos;t load this page. This is usually a temporary hiccup — try again or return to the overview.
         </p>
         <div className="mt-5 flex justify-center gap-2">
           <Button type="button" onClick={reset}>

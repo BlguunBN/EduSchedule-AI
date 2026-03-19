@@ -2,8 +2,10 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { jsonError, jsonOk } from "@/lib/api";
 import { createLocalEventWithHistory, getStudentCalendarEvents } from "@/lib/edu-schedule/calendar";
-import { ensureDemoStudent, ensureTimetableCalendar } from "@/lib/edu-schedule/demo-student";
+import { requireCurrentStudent } from "@/lib/edu-schedule/current-student";
+import { ensureTimetableCalendar } from "@/lib/edu-schedule/demo-student";
 import { findFreeSlots } from "@/lib/edu-schedule/scheduling";
+import { syncRemindersFromCalendarEvents } from "@/lib/edu-schedule/reminders";
 
 const eventCreateSchema = z
   .object({
@@ -21,7 +23,7 @@ const eventCreateSchema = z
 
 export async function GET(req: NextRequest) {
   try {
-    const student = await ensureDemoStudent();
+    const { student } = await requireCurrentStudent();
     await ensureTimetableCalendar(student.id);
 
     const start = req.nextUrl.searchParams.get("start");
@@ -55,7 +57,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const student = await ensureDemoStudent();
+    const { student } = await requireCurrentStudent();
     const payload = eventCreateSchema.parse(await req.json());
 
     const created = await createLocalEventWithHistory({
@@ -67,6 +69,9 @@ export async function POST(req: NextRequest) {
       endsAt: new Date(payload.endsAt),
       source: payload.source,
     });
+
+    // Auto-schedule reminders if this looks like a deadline event
+    await syncRemindersFromCalendarEvents(student.id);
 
     return jsonOk(
       {

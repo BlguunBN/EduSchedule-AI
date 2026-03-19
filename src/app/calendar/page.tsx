@@ -1,3 +1,9 @@
+/**
+ * @deprecated Prototype/demo page using hardcoded mock data.
+ * The production calendar is at /dashboard/calendar.
+ * This page exists only for local development reference and should not be
+ * linked or indexed in production.
+ */
 import { Card } from "@/components/ui/card";
 import { sampleCalendarEvents } from "@/lib/edu-schedule/mock-data";
 import { findFreeSlots } from "@/lib/edu-schedule/scheduling";

@@ -1,3 +1,9 @@
+/**
+ * @deprecated Prototype/demo page using hardcoded mock data.
+ * The production timetable editor is at /dashboard/timetable.
+ * This page exists only for local development reference and should not be
+ * linked or indexed in production.
+ */
 import { Card } from "@/components/ui/card";
 import { TimetableEditor } from "@/components/timetable-editor";
 import { sampleTimetableEntries } from "@/lib/edu-schedule/mock-data";

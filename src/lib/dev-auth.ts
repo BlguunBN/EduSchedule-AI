@@ -1,6 +1,11 @@
 import type { Session } from "next-auth";
 
+/**
+ * Returns true only in non-production environments when the opt-in flag is set.
+ * This CANNOT be activated in production regardless of env var values.
+ */
 export function isDevAuthBypassEnabled() {
+  if (process.env.NODE_ENV === "production") return false;
   return process.env.DEV_AUTH_BYPASS === "true";
 }
 

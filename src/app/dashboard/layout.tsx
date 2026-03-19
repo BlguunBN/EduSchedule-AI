@@ -6,12 +6,18 @@ import { SignOutButton } from "@/components/dashboard/sign-out-button";
 import { getDevBypassSession, isDevAuthBypassEnabled } from "@/lib/dev-auth";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const session = isDevAuthBypassEnabled() ? getDevBypassSession() : await auth();
+  // Always prefer a real signed-in session. Only fall back to dev bypass when
+  // no real session exists — ensures account switches are reflected immediately.
+  let session = await auth();
+  if (!session?.user && isDevAuthBypassEnabled()) {
+    session = getDevBypassSession();
+  }
 
   if (!session?.user) {
     redirect("/login");
   }
 
+  const isDemoMode = session.user.email === "demo@eduschedule.local";
   const displayName = session.user.name ?? session.user.email ?? "Student";
   const initials = displayName
     .split(" ")
@@ -23,7 +29,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div className="flex min-h-screen bg-slate-50">
       {/* Fixed dark sidebar */}
-      <DashboardSidebar displayName={displayName} initials={initials} />
+      <DashboardSidebar displayName={displayName} initials={initials} isDemoMode={isDemoMode} />
 
       {/* Main content area */}
       <div className="flex flex-1 flex-col min-w-0">

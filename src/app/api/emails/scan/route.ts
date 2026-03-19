@@ -7,6 +7,8 @@ import { fetchEmailMessages } from "@/lib/edu-schedule/email/fetch";
 import { classifyEmail } from "@/lib/edu-schedule/email/classify";
 import { extractActionItems, extractDates, extractLocations, summarizeEmail } from "@/lib/edu-schedule/email/extract";
 import { getMicrosoftGraphStatus } from "@/lib/edu-schedule/graph";
+import { isDevAuthBypassEnabled } from "@/lib/dev-auth";
+import { syncRemindersFromScheduleChanges } from "@/lib/edu-schedule/reminders";
 import type { EmailMessage, EmailScanResult } from "@/lib/edu-schedule/types";
 
 const emailMessageSchema = z.object({
@@ -124,11 +126,10 @@ async function persistScan(studentId: string, provider: string, results: EmailSc
 }
 
 async function getHistory(studentId: string) {
-  const allowMock = process.env.DEV_AUTH_BYPASS === "true";
   const logs = await prisma.emailProcessingLog.findMany({
     where: {
       studentId,
-      ...(allowMock ? {} : { provider: "MICROSOFT-GRAPH" }),
+      provider: { not: "MOCK" },
     },
     orderBy: { createdAt: "desc" },
     take: 20,
@@ -150,8 +151,9 @@ export async function POST(req: NextRequest) {
   try {
     const { user, student } = await requireCurrentStudent();
     const payload = scanSchema.parse(await req.json().catch(() => ({})));
-    const allowMock = process.env.DEV_AUTH_BYPASS === "true";
-    const provider = payload.provider ?? (allowMock ? "mock" : "microsoft-graph");
+    const allowMock = isDevAuthBypassEnabled();
+    // Default is always microsoft-graph. Mock must be explicitly requested and bypass must be on.
+    const provider = payload.provider ?? "microsoft-graph";
     const graphStatus = await getMicrosoftGraphStatus(user.id);
 
     if (provider === "mock" && !allowMock) {
@@ -173,11 +175,16 @@ export async function POST(req: NextRequest) {
 
     if (payload.persistDetectedEvents) {
       await persistScan(student.id, provider, results);
+      // Auto-schedule reminders for any newly detected schedule changes
+      await syncRemindersFromScheduleChanges(student.id);
     }
 
+    const effectiveLimit = payload.limit ?? 10;
     return jsonOk({
       provider,
       count: results.length,
+      limit: effectiveLimit,
+      scanAt: new Date().toISOString(),
       results,
       history: await getHistory(student.id),
       persisted: payload.persistDetectedEvents,
@@ -192,14 +199,10 @@ export async function GET() {
   try {
     const { user, student } = await requireCurrentStudent();
     const history = await getHistory(student.id);
-    const allowMock = process.env.DEV_AUTH_BYPASS === "true";
-    const provider = allowMock ? "mock" : "microsoft-graph";
-    const messages = await fetchEmailMessages({ provider, limit: 10, userId: user.id });
     const graphStatus = await getMicrosoftGraphStatus(user.id);
+    // GET returns history + graph status only; no live fetch to avoid accidental mock leakage.
     return jsonOk({
-      provider,
-      count: messages.length,
-      results: messages.map(scanMessage),
+      provider: "microsoft-graph",
       history,
       graphStatus,
     });

@@ -24,8 +24,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           allowDangerousEmailAccountLinking: allowEmailLinking,
           authorization: {
             params: {
-              // Minimal scopes first to avoid tenant/admin friction during initial sign-in.
+              // Minimal scopes to avoid tenant/admin consent friction.
+              // Mail.Read is NOT requested here — it must be granted separately
+              // via app registration admin consent in the Azure portal.
               scope: "openid profile email offline_access User.Read",
+              // Always show account picker so users can switch/add another Microsoft account.
+              prompt: "select_account",
             },
           },
         }),

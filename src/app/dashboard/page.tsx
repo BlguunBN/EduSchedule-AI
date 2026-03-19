@@ -13,17 +13,25 @@ import {
 } from "lucide-react";
 import { Badge, statusVariant } from "@/components/ui/badge";
 import { StatCard } from "@/components/dashboard/stat-card";
-import { getDemoDashboardSnapshot } from "@/lib/edu-schedule/dashboard-data";
+import { GettingStartedChecklist } from "@/components/dashboard/getting-started-checklist";
+import { getDashboardSnapshot } from "@/lib/edu-schedule/dashboard-data";
+import { requireCurrentStudent } from "@/lib/edu-schedule/current-student";
 
 export const dynamic = "force-dynamic";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default async function DashboardOverviewPage() {
-  const data = await getDemoDashboardSnapshot();
+  const { student } = await requireCurrentStudent();
+  const data = await getDashboardSnapshot(student.id);
   const nextEvent = data.upcomingEvents[0];
   const latestChange = data.recentChanges[0];
   const latestEmail = data.emailHistory[0];
+
+  const hasTimetable = (data.activeTimetable?.entries.length ?? 0) > 0;
+  const hasCalendarEvents = data.upcomingEvents.length > 0;
+  const hasEmailScan = data.emailHistory.length > 0;
+  const hasReminders = data.metrics.pendingChanges > 0 || data.metrics.processedEmails > 0;
 
   return (
     <div className="space-y-8">
@@ -33,9 +41,16 @@ export default async function DashboardOverviewPage() {
           Your schedule at a glance
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Timetables, calendar events, email changes, and pending reviews all in one place.
+          Timetables, calendar events, email changes, and reminders — all in one place.
         </p>
       </div>
+
+      <GettingStartedChecklist
+        hasTimetable={hasTimetable}
+        hasCalendarEvents={hasCalendarEvents}
+        hasEmailScan={hasEmailScan}
+        hasReminders={hasReminders}
+      />
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -269,7 +284,7 @@ function QuickAction({
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700"
+      className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition-colors duration-150 hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700"
     >
       <Icon className="h-4 w-4" />
       {label}

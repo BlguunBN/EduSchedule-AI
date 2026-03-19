@@ -13,16 +13,12 @@ export function SignOutButton() {
       variant="ghost"
       size="sm"
       onClick={() => {
-        if (bypassEnabled) {
-          window.location.href = "/login";
-          return;
-        }
-
-        void signOut({ callbackUrl: "/" });
+        // Always clear NextAuth session cookie so account switching works reliably.
+        void signOut({ callbackUrl: "/login" });
       }}
     >
       <LogOut className="h-4 w-4" />
-      {bypassEnabled ? "Exit demo mode" : "Sign out"}
+      {bypassEnabled ? "Sign out / exit demo" : "Sign out"}
     </Button>
   );
 }

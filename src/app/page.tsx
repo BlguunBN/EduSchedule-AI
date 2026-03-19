@@ -5,20 +5,20 @@ import { Button } from "@/components/ui/button";
 
 const pillars = [
   {
-    title: "University auth",
-    description: "Sign in with your university Microsoft account. Access is scoped to campus workflows only.",
+    title: "Sign in with Microsoft",
+    description: "Use your university account — no extra password needed. Your data stays private to you.",
     icon: ShieldCheck,
     accent: "sky",
   },
   {
-    title: "Timetable ingestion",
-    description: "Normalize class schedules into one source of truth — room, instructor, and week patterns included.",
+    title: "One timetable, always current",
+    description: "Upload your class schedule once. Room changes and cancellations update it automatically.",
     icon: CalendarClock,
     accent: "violet",
   },
   {
-    title: "Email change detection",
-    description: "Capture inbox notices, detect schedule changes, and sync only what actually matters.",
+    title: "Inbox-aware schedule sync",
+    description: "We read relevant academic emails and flag changes for you to approve before anything updates.",
     icon: Mail,
     accent: "emerald",
   },
@@ -62,16 +62,16 @@ export default function LandingPage() {
         <section className="pb-20 pt-24">
           <div className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700">
             <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
-            Day 3 prototype · local demo ready
+            Beta · invite-only
           </div>
           <h1 className="mt-8 max-w-2xl text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl sm:leading-tight">
             Your academic calendar,{" "}
-            <span className="text-sky-600">cleaned up</span>{" "}
-            before chaos hits.
+            <span className="text-sky-600">always up to date</span>{" "}
+            — without the manual work.
           </h1>
           <p className="mt-6 max-w-xl text-lg leading-8 text-slate-500">
-            EduScheduleAI helps students keep their Outlook calendar aligned with class timetables,
-            room changes, cancellations, and ad-hoc academic emails.
+            EduScheduleAI keeps your class schedule in sync with room changes,
+            cancellations, and deadline emails — all in one place.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <SignInButton />
@@ -102,15 +102,15 @@ export default function LandingPage() {
 
         {/* What ships */}
         <section className="mb-20 rounded-xl border border-slate-200 bg-slate-50 p-6">
-          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">In this build</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">What you can do</p>
           <ul className="mt-4 grid gap-2.5 text-sm text-slate-600 sm:grid-cols-2">
             {[
-              "Prisma models for users, students, timetables, and change tracking",
-              "NextAuth v5 with Microsoft provider placeholders",
-              "Protected dashboard with local demo auth bypass",
-              "Timetable workspace with CSV/ICS import sandbox",
-              "Email inbox scan with AI classification",
-              "Schedule change detection and review feed",
+              "Sign in with your university Microsoft account",
+              "Import your timetable via CSV or ICS file",
+              "Scan your Outlook inbox for schedule change emails",
+              "Review and approve detected changes before they affect your calendar",
+              "Get reminders before deadlines and exams",
+              "Export your schedule as an ICS file to any calendar app",
             ].map((item) => (
               <li key={item} className="flex items-start gap-2">
                 <span className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full bg-sky-500" />
@@ -124,7 +124,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-slate-100 py-6">
         <div className="mx-auto max-w-5xl px-6 sm:px-10">
-          <p className="text-xs text-slate-400">EduScheduleAI · Student prototype · Local data only</p>
+          <p className="text-xs text-slate-400">EduScheduleAI · Beta · Your data is stored locally and never shared</p>
         </div>
       </footer>
     </div>

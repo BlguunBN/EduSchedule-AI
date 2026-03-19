@@ -1,14 +1,16 @@
 import { NextRequest } from "next/server";
 import { jsonError, jsonOk } from "@/lib/api";
+import { requireCurrentStudent } from "@/lib/edu-schedule/current-student";
 import {
-  getDemoStudentPreferences,
+  getStudentPreferences,
   studentPreferencesSchema,
-  updateDemoStudentPreferences,
+  updateStudentPreferences,
 } from "@/lib/edu-schedule/preferences";
 
 export async function GET() {
   try {
-    const { student, preferences } = await getDemoStudentPreferences();
+    const { student } = await requireCurrentStudent();
+    const preferences = await getStudentPreferences(student.id);
 
     return jsonOk({
       student: {
@@ -25,8 +27,9 @@ export async function GET() {
 
 export async function PUT(req: NextRequest) {
   try {
+    const { student } = await requireCurrentStudent();
     const payload = studentPreferencesSchema.parse(await req.json());
-    const preferences = await updateDemoStudentPreferences(payload);
+    const preferences = await updateStudentPreferences(student.id, payload);
     return jsonOk({ preferences });
   } catch (error) {
     return jsonError(error);

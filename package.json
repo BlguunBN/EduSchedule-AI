@@ -12,7 +12,12 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "setup:local": "npm run db:generate && npm run db:push && npm run db:seed",
-    "setup:prod": "npm run db:generate && npm run db:migrate:deploy && npm run db:seed"
+    "setup:prod": "npm run db:generate && npm run db:migrate:deploy && npm run db:seed",
+    "setup:supabase": "npm run db:generate && npm run db:migrate:deploy && npm run db:seed",
+    "smoke": "tsx scripts/smoke-check.ts",
+    "smoke:prod": "tsx scripts/smoke-check.ts --base-url http://localhost:3000",
+    "ops:daily": "tsx scripts/daily-ops.ts",
+    "prerelease:check": "npm run db:generate && npm run lint && npm run build && npm run smoke"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.41",

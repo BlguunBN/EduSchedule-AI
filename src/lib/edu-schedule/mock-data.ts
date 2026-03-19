@@ -1,3 +1,15 @@
+/**
+ * mock-data.ts — Demo / development fixture data
+ *
+ * @deprecated — NOT for production use.
+ * These fixtures are used only by:
+ *   - `/calendar` and `/timetable` standalone prototype pages
+ *   - `email/fetch.ts` when provider="mock" (dev only)
+ *   - `day3-finish-panel.tsx` as an empty-state fallback
+ *
+ * Production paths use real DB data via Prisma.
+ * Do NOT add new call sites to this file.
+ */
 import type { CalendarEvent, EmailMessage, TimetableEntry } from "@/lib/edu-schedule/types";
 
 export const sampleCalendarEvents: CalendarEvent[] = [
