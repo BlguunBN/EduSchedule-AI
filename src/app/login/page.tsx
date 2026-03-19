@@ -19,16 +19,20 @@ export default async function LoginPage({
   let session: { user?: unknown } | null = null;
   let sessionError = false;
 
-  if (!bypassEnabled) {
-    try {
-      session = await auth();
-    } catch (error) {
-      sessionError = true;
-      console.error("[login] auth() failed", error);
-    }
+  try {
+    session = await auth();
+  } catch (error) {
+    sessionError = true;
+    console.error("[login] auth() failed", error);
   }
 
+  // Always redirect to dashboard when a real session exists — even in bypass mode.
   if (session?.user) {
+    redirect("/dashboard");
+  }
+
+  // In bypass mode with no real session, go straight to dashboard as demo user.
+  if (bypassEnabled && !session?.user) {
     redirect("/dashboard");
   }
 

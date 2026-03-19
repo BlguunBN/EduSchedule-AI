@@ -42,11 +42,17 @@ type EmailHistoryItem = {
   createdAt: string;
 };
 
+type FetchedEmail = {
+  message: { id: string; subject: string; from: string; receivedAt: string };
+  category: string;
+};
+
 type ScanMeta = {
   provider: string;
   count: number;
   limit: number;
   scanAt: string;
+  fetched: FetchedEmail[];
 };
 
 export function EmailReviewPanel({
@@ -77,8 +83,8 @@ export function EmailReviewPanel({
       if (!response.ok || !result.ok) {
         throw new Error(result.error?.message ?? "Scan failed");
       }
-      const { provider, count, limit, scanAt, history: freshHistory } = result.data;
-      setScanMeta({ provider, count, limit, scanAt });
+      const { provider, count, limit, scanAt, results, history: freshHistory } = result.data;
+      setScanMeta({ provider, count, limit, scanAt, fetched: results ?? [] });
       if (freshHistory) setHistory(freshHistory);
       pushToast({
         title: "Scan complete",
@@ -152,28 +158,55 @@ export function EmailReviewPanel({
   return (
     <div className="space-y-8">
       {/* Scan controls */}
-      <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div>
-          <p className="text-sm font-semibold text-slate-900">Inbox scan</p>
-          {scanMeta ? (
-            <p className="mt-0.5 text-xs text-slate-500">
-              Last scan: {new Date(scanMeta.scanAt).toLocaleString()} · Provider:{" "}
-              <span className="font-medium text-slate-700">{scanMeta.provider}</span> · Fetched{" "}
-              {scanMeta.count}/{scanMeta.limit}
-            </p>
-          ) : (
-            <p className="mt-0.5 text-xs text-slate-400">Run a scan to fetch the latest emails from Microsoft Graph.</p>
-          )}
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">Inbox scan</p>
+            {scanMeta ? (
+              <p className="mt-0.5 text-xs text-slate-500">
+                Last scan: {new Date(scanMeta.scanAt).toLocaleString()} · Provider:{" "}
+                <span className="font-medium text-slate-700">{scanMeta.provider}</span> · Fetched{" "}
+                {scanMeta.count}/{scanMeta.limit}
+              </p>
+            ) : (
+              <p className="mt-0.5 text-xs text-slate-400">Run a scan to fetch the latest emails from Microsoft Graph.</p>
+            )}
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            disabled={scanning || !graphStatus.connected}
+            onClick={runScan}
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${scanning ? "animate-spin" : ""}`} />
+            {scanning ? "Scanning…" : "Scan inbox"}
+          </Button>
         </div>
-        <Button
-          type="button"
-          size="sm"
-          disabled={scanning || !graphStatus.connected}
-          onClick={runScan}
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${scanning ? "animate-spin" : ""}`} />
-          {scanning ? "Scanning…" : "Scan inbox"}
-        </Button>
+
+        {/* Fetched email list — shows exactly what came back from Graph */}
+        {scanMeta && scanMeta.fetched.length > 0 && (
+          <div className="mt-4 space-y-1.5">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+              Emails fetched this scan
+            </p>
+            {scanMeta.fetched.map((item) => (
+              <div
+                key={item.message.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-slate-800">{item.message.subject}</p>
+                  <p className="text-slate-400">{item.message.from} · {new Date(item.message.receivedAt).toLocaleString()}</p>
+                </div>
+                <Badge variant={item.category === "SCHEDULING" ? "sky" : "default"}>{item.category}</Badge>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {scanMeta && scanMeta.fetched.length === 0 && (
+          <p className="mt-3 text-xs text-slate-400">No emails returned from inbox.</p>
+        )}
       </section>
 
       <section className="grid gap-3 md:grid-cols-4">

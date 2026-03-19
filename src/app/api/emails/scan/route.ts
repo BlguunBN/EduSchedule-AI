@@ -179,7 +179,7 @@ export async function POST(req: NextRequest) {
       await syncRemindersFromScheduleChanges(student.id);
     }
 
-    const effectiveLimit = payload.limit ?? 10;
+    const effectiveLimit = payload.limit ?? 20;
     return jsonOk({
       provider,
       count: results.length,

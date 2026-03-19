@@ -179,7 +179,7 @@ async function fetchFromMicrosoftGraph(limit: number, userId: string): Promise<E
 
 export async function fetchEmailMessages(options: EmailFetchOptions = {}): Promise<EmailMessage[]> {
   const provider = options.provider ?? "microsoft-graph";
-  const limit = options.limit ?? 10;
+  const limit = options.limit ?? 20;
 
   if (provider === "mock") {
     if (process.env.NODE_ENV === "production") {

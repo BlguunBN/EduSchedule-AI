@@ -1,3 +1,6 @@
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
+import { isDevAuthBypassEnabled } from "@/lib/dev-auth";
 import Link from "next/link";
 import { ArrowRight, CalendarClock, Mail, ShieldCheck, Zap } from "lucide-react";
 import { SignInButton } from "@/components/auth/sign-in-button";
@@ -36,7 +39,11 @@ const accentBorder: Record<string, string> = {
   emerald: "border-l-emerald-400",
 };
 
-export default function LandingPage() {
+export default async function HomePage() {
+  // Redirect already-authenticated users straight to the dashboard.
+  const session = isDevAuthBypassEnabled() ? true : await auth();
+  if (session) redirect("/dashboard");
+
   return (
     <div className="min-h-screen bg-white">
       {/* Nav */}
@@ -48,9 +55,9 @@ export default function LandingPage() {
             </span>
             <span className="text-sm font-semibold text-slate-900">EduScheduleAI</span>
           </div>
-          <Link href="/dashboard">
+          <Link href="/login">
             <Button variant="outline" size="sm">
-              Dashboard
+              Sign in
               <ArrowRight className="h-3.5 w-3.5" />
             </Button>
           </Link>
@@ -75,12 +82,6 @@ export default function LandingPage() {
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <SignInButton />
-            <Link href="/dashboard">
-              <Button variant="outline">
-                Preview dashboard
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
           </div>
         </section>
 
