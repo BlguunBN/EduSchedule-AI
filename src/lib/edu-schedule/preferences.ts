@@ -1,6 +1,13 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { ensureStudentPreferences } from "@/lib/edu-schedule/demo-student";
+import {
+  getStudentProfileUpdateData,
+  serializeStudentProfile,
+  studentProfileUpdateSchema,
+  syncLinkedUserName,
+  type StudentProfileUpdateInput,
+} from "@/lib/edu-schedule/student-profile";
 
 export const studentPreferencesSchema = z.object({
   studySessionMinutes: z.number().int().min(30).max(240),
@@ -20,6 +27,48 @@ export const studentPreferencesSchema = z.object({
 );
 
 export type StudentPreferencesInput = z.infer<typeof studentPreferencesSchema>;
+
+/** Atomic save: academic profile + scheduling preferences in one transaction. */
+export const settingsPutSchema = z.object({
+  preferences: studentPreferencesSchema,
+  profile: studentProfileUpdateSchema,
+});
+
+export type SettingsPutInput = z.infer<typeof settingsPutSchema>;
+
+export async function updateStudentSettingsBundle(
+  studentId: string,
+  preferencesInput: StudentPreferencesInput,
+  profileInput: StudentProfileUpdateInput,
+) {
+  const profileData = getStudentProfileUpdateData(profileInput);
+
+  return prisma.$transaction(async (tx) => {
+    let student = await tx.student.findUniqueOrThrow({ where: { id: studentId } });
+
+    if (profileData) {
+      student = await tx.student.update({
+        where: { id: studentId },
+        data: profileData,
+      });
+      await syncLinkedUserName(tx, studentId, profileInput.fullName);
+    }
+
+    const preferences = await tx.studentPreferences.upsert({
+      where: { studentId },
+      update: preferencesInput,
+      create: {
+        studentId,
+        ...preferencesInput,
+      },
+    });
+
+    return {
+      student: serializeStudentProfile(student),
+      preferences: serializePreferences(preferences),
+    };
+  });
+}
 
 export function serializePreferences(
   preferences: Awaited<ReturnType<typeof ensureStudentPreferences>>,

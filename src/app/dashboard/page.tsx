@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  Bell,
   BookOpen,
   CalendarCheck,
   CalendarDays,
@@ -31,7 +32,7 @@ export default async function DashboardOverviewPage() {
   const hasTimetable = (data.activeTimetable?.entries.length ?? 0) > 0;
   const hasCalendarEvents = data.upcomingEvents.length > 0;
   const hasEmailScan = data.emailHistory.length > 0;
-  const hasReminders = data.metrics.pendingChanges > 0 || data.metrics.processedEmails > 0;
+  const hasReminders = data.metrics.scheduledReminders > 0;
 
   return (
     <div className="space-y-8">
@@ -70,7 +71,10 @@ export default async function DashboardOverviewPage() {
         </div>
       </section>
 
-      <section aria-label="Key metrics" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <section
+        aria-label="Key metrics"
+        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-6"
+      >
         <StatCard
           label="Active timetables"
           value={data.metrics.activeTimetables}
@@ -105,6 +109,55 @@ export default async function DashboardOverviewPage() {
           icon={Mail}
           accent="slate"
         />
+        <StatCard
+          label="In-app reminders"
+          value={data.metrics.pendingReminders}
+          hint={`${data.metrics.scheduledReminders} scheduled total`}
+          icon={Bell}
+          accent="rose"
+        />
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">Next reminders</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              In-app alerts before deadlines and schedule changes (7d / 3d / 1d / day-of).
+            </p>
+          </div>
+          <Link
+            href="/dashboard/reminders"
+            className="text-xs font-medium text-sky-600 hover:text-sky-700 hover:underline underline-offset-2"
+          >
+            Manage reminders →
+          </Link>
+        </div>
+        <div className="mt-4 space-y-2">
+          {data.upcomingReminders.length ? (
+            data.upcomingReminders.slice(0, 5).map((r) => (
+              <div
+                key={r.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2.5 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-slate-900">{r.title}</p>
+                  <p className="text-xs text-slate-400">
+                    {r.offsetLabel} · due {new Date(r.dueAt).toLocaleString()}
+                  </p>
+                </div>
+                <Badge variant="default" className="shrink-0">
+                  {new Date(r.sendAt).toLocaleString()}
+                </Badge>
+              </div>
+            ))
+          ) : (
+            <EmptyState
+              label="No upcoming reminder triggers"
+              hint="Open Reminders to sync from your calendar and schedule changes."
+            />
+          )}
+        </div>
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">

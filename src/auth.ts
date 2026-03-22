@@ -40,6 +40,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.id = user.id;
         session.user.role = user.role ?? "STUDENT";
+        session.user.name = user.name;
+        session.user.email = user.email;
       }
       return session;
     },

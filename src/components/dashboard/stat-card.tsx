@@ -7,6 +7,7 @@ const accentBorder: Record<string, string> = {
   emerald: "border-l-emerald-500",
   amber: "border-l-amber-500",
   violet: "border-l-violet-500",
+  rose: "border-l-rose-500",
 };
 
 const accentIcon: Record<string, string> = {
@@ -15,6 +16,7 @@ const accentIcon: Record<string, string> = {
   emerald: "bg-emerald-100 text-emerald-600",
   amber: "bg-amber-100 text-amber-600",
   violet: "bg-violet-100 text-violet-600",
+  rose: "bg-rose-100 text-rose-600",
 };
 
 export function StatCard({
@@ -28,7 +30,7 @@ export function StatCard({
   value: string | number;
   hint?: string;
   icon?: LucideIcon;
-  accent?: "slate" | "sky" | "emerald" | "amber" | "violet";
+  accent?: "slate" | "sky" | "emerald" | "amber" | "violet" | "rose";
 }) {
   return (
     <div
