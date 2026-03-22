@@ -13,17 +13,23 @@ export default async function SettingsPage() {
       <div>
         <p className="text-xs font-semibold uppercase tracking-widest text-sky-600">Settings</p>
         <h1 className="mt-1.5 text-2xl font-bold tracking-tight text-slate-900">
-          Student preferences
+          Profile &amp; preferences
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Persist your study defaults so the chat assistant and scheduling helpers behave consistently.
+          Update your academic profile and study defaults — used across the dashboard, calendar, and AI
+          assistant.
         </p>
       </div>
 
       <SettingsForm
         initialPreferences={preferences}
-        studentName={student.fullName}
-        timezone={student.timezone}
+        initialProfile={{
+          fullName: student.fullName,
+          timezone: student.timezone,
+          degreeProgram: student.degreeProgram,
+          yearOfStudy: student.yearOfStudy,
+          campus: student.campus,
+        }}
       />
     </div>
   );

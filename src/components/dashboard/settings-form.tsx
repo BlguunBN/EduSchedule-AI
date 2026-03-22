@@ -1,10 +1,26 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast-provider";
+
+const PROFILE_TIMEZONES = [
+  "Asia/Shanghai",
+  "Asia/Hong_Kong",
+  "Asia/Singapore",
+  "Asia/Seoul",
+  "Asia/Tokyo",
+  "UTC",
+  "Europe/London",
+  "Europe/Paris",
+  "America/New_York",
+  "America/Chicago",
+  "America/Los_Angeles",
+  "Australia/Sydney",
+] as const;
 
 type SettingsState = {
   studentId: string;
@@ -19,21 +35,45 @@ type SettingsState = {
   digestNotificationsEnabled: boolean;
 };
 
+type ProfileState = {
+  fullName: string;
+  timezone: string;
+  degreeProgram: string;
+  yearOfStudy: string;
+  campus: string;
+};
+
 export function SettingsForm({
   initialPreferences,
-  studentName,
-  timezone,
+  initialProfile,
 }: {
   initialPreferences: SettingsState;
-  studentName: string;
-  timezone: string;
+  initialProfile: {
+    fullName: string;
+    timezone: string;
+    degreeProgram: string | null;
+    yearOfStudy: number | null;
+    campus: string | null;
+  };
 }) {
   const [form, setForm] = useState(initialPreferences);
+  const [profile, setProfile] = useState<ProfileState>({
+    fullName: initialProfile.fullName,
+    timezone: initialProfile.timezone,
+    degreeProgram: initialProfile.degreeProgram ?? "",
+    yearOfStudy: initialProfile.yearOfStudy != null ? String(initialProfile.yearOfStudy) : "",
+    campus: initialProfile.campus ?? "",
+  });
   const [saving, setSaving] = useState(false);
   const { pushToast } = useToast();
+  const router = useRouter();
 
   function update<K extends keyof SettingsState>(key: K, value: SettingsState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateProfile<K extends keyof ProfileState>(key: K, value: ProfileState[K]) {
+    setProfile((current) => ({ ...current, [key]: value }));
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -41,18 +81,45 @@ export function SettingsForm({
     setSaving(true);
 
     try {
+      const yearNum = profile.yearOfStudy.trim();
+      const profilePayload = {
+        fullName: profile.fullName.trim(),
+        timezone: profile.timezone.trim(),
+        degreeProgram: profile.degreeProgram.trim() || null,
+        yearOfStudy: yearNum === "" ? null : Number.parseInt(yearNum, 10),
+        campus: profile.campus.trim() || null,
+      };
+
+      if (
+        profilePayload.yearOfStudy !== null &&
+        (Number.isNaN(profilePayload.yearOfStudy) ||
+          profilePayload.yearOfStudy < 1 ||
+          profilePayload.yearOfStudy > 12)
+      ) {
+        throw new Error("Year of study must be between 1 and 12, or left empty.");
+      }
+
       const response = await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          studySessionMinutes: form.studySessionMinutes,
-          minimumFreeSlotMinutes: form.minimumFreeSlotMinutes,
-          preferredStudyStartTime: form.preferredStudyStartTime,
-          preferredStudyEndTime: form.preferredStudyEndTime,
-          preferredStudyLocation: form.preferredStudyLocation?.trim() || null,
-          weekStartsOn: form.weekStartsOn,
-          includeWeekends: form.includeWeekends,
-          digestNotificationsEnabled: form.digestNotificationsEnabled,
+          profile: {
+            fullName: profilePayload.fullName,
+            timezone: profilePayload.timezone,
+            degreeProgram: profilePayload.degreeProgram,
+            yearOfStudy: profilePayload.yearOfStudy,
+            campus: profilePayload.campus,
+          },
+          preferences: {
+            studySessionMinutes: form.studySessionMinutes,
+            minimumFreeSlotMinutes: form.minimumFreeSlotMinutes,
+            preferredStudyStartTime: form.preferredStudyStartTime,
+            preferredStudyEndTime: form.preferredStudyEndTime,
+            preferredStudyLocation: form.preferredStudyLocation?.trim() || null,
+            weekStartsOn: form.weekStartsOn,
+            includeWeekends: form.includeWeekends,
+            digestNotificationsEnabled: form.digestNotificationsEnabled,
+          },
         }),
       });
       const result = await response.json();
@@ -61,10 +128,30 @@ export function SettingsForm({
         throw new Error(result.error?.message ?? "Failed to save settings");
       }
 
-      setForm(result.data.preferences);
+      if (result.data?.preferences) {
+        setForm(result.data.preferences);
+      }
+      if (result.data?.student) {
+        const s = result.data.student as {
+          fullName: string;
+          timezone: string;
+          degreeProgram: string | null;
+          yearOfStudy: number | null;
+          campus: string | null;
+        };
+        setProfile({
+          fullName: s.fullName,
+          timezone: s.timezone,
+          degreeProgram: s.degreeProgram ?? "",
+          yearOfStudy: s.yearOfStudy != null ? String(s.yearOfStudy) : "",
+          campus: s.campus ?? "",
+        });
+      }
+
+      router.refresh();
       pushToast({
         title: "Settings saved",
-        description: "Chat and scheduling helpers will use the updated preferences.",
+        description: "Profile and scheduling preferences are updated.",
         variant: "success",
       });
     } catch (error) {
@@ -81,11 +168,63 @@ export function SettingsForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-sm font-semibold text-slate-900">Student defaults</h2>
+        <h2 className="text-sm font-semibold text-slate-900">Academic profile</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          Shown on your dashboard and used for calendar display. Sign-in email is managed by Microsoft.
+        </p>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <Field label="Full name">
+            <Input
+              value={profile.fullName}
+              onChange={(event) => updateProfile("fullName", event.target.value)}
+              autoComplete="name"
+            />
+          </Field>
+          <Field label="Timezone (IANA)">
+            <Input
+              value={profile.timezone}
+              onChange={(event) => updateProfile("timezone", event.target.value)}
+              placeholder="e.g. Asia/Shanghai"
+              list="profile-timezone-options"
+            />
+            <datalist id="profile-timezone-options">
+              {PROFILE_TIMEZONES.map((tz) => (
+                <option key={tz} value={tz} />
+              ))}
+            </datalist>
+          </Field>
+          <Field label="Degree / program">
+            <Input
+              value={profile.degreeProgram}
+              onChange={(event) => updateProfile("degreeProgram", event.target.value)}
+              placeholder="e.g. BSc Computer Science"
+            />
+          </Field>
+          <Field label="Year of study">
+            <Input
+              type="number"
+              min={1}
+              max={12}
+              value={profile.yearOfStudy}
+              onChange={(event) => updateProfile("yearOfStudy", event.target.value)}
+              placeholder="e.g. 2"
+            />
+          </Field>
+          <Field label="Campus" className="md:col-span-2">
+            <Input
+              value={profile.campus}
+              onChange={(event) => updateProfile("campus", event.target.value)}
+              placeholder="e.g. Main campus"
+            />
+          </Field>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-sm font-semibold text-slate-900">Study defaults</h2>
         <dl className="mt-4 grid gap-4 sm:grid-cols-3">
-          <InfoBox label="Student" value={studentName} />
-          <InfoBox label="Timezone" value={timezone} />
-          <InfoBox label="Last updated" value={new Date(form.updatedAt).toLocaleString()} />
+          <InfoBox label="Student ID" value={form.studentId.slice(0, 6) + "…"} />
+          <InfoBox label="Last preferences update" value={new Date(form.updatedAt).toLocaleString()} />
         </dl>
       </section>
 
@@ -163,7 +302,7 @@ export function SettingsForm({
           </p>
           <Button type="submit" disabled={saving}>
             <Save className="h-4 w-4" />
-            {saving ? "Saving..." : "Save settings"}
+            {saving ? "Saving..." : "Save all"}
           </Button>
         </div>
       </section>
@@ -171,9 +310,17 @@ export function SettingsForm({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+  className,
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <label className="block">
+    <label className={className ?? "block"}>
       <span className="mb-1.5 block text-sm font-medium text-slate-700">{label}</span>
       {children}
     </label>

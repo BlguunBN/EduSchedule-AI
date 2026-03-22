@@ -17,7 +17,16 @@ export async function getDashboardSnapshot(studentId: string) {
   const student = await prisma.student.findUniqueOrThrow({ where: { id: studentId } });
 
   const now = new Date();
-  const [activeTimetable, timetables, upcomingEvents, recentChanges, emailHistory, graphStatus] = await Promise.all([
+  const [
+    activeTimetable,
+    timetables,
+    upcomingEvents,
+    recentChanges,
+    emailHistory,
+    graphStatus,
+    reminderAggregate,
+    upcomingReminders,
+  ] = await Promise.all([
     prisma.timetable.findFirst({
       where: { studentId, isActive: true },
       include: { entries: { orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }] } },
@@ -45,7 +54,30 @@ export async function getDashboardSnapshot(studentId: string) {
       take: 12,
     }),
     getMicrosoftGraphStatus(student.userId),
+    prisma.reminder.groupBy({
+      by: ["status"],
+      where: { studentId },
+      _count: { _all: true },
+    }),
+    prisma.reminder.findMany({
+      where: {
+        studentId,
+        status: { in: ["PENDING", "PROCESSING"] },
+        sendAt: { gte: now },
+      },
+      orderBy: { sendAt: "asc" },
+      take: 8,
+    }),
   ]);
+
+  const statusCounts = Object.fromEntries(
+    reminderAggregate.map((row) => [row.status, row._count._all]),
+  ) as Record<string, number>;
+  const activeReminderRows =
+    (statusCounts.PENDING ?? 0) +
+    (statusCounts.PROCESSING ?? 0) +
+    (statusCounts.SENT ?? 0);
+  const pendingReviewReminders = (statusCounts.PENDING ?? 0) + (statusCounts.PROCESSING ?? 0);
 
   const pendingStatuses = new Set(["PENDING", "DETECTED"]);
   const reviewQueue = recentChanges
@@ -77,6 +109,10 @@ export async function getDashboardSnapshot(studentId: string) {
       upcomingEvents: upcomingEvents.length,
       pendingChanges: recentChanges.filter((item) => pendingStatuses.has(item.status)).length,
       processedEmails: emailHistory.filter((item) => item.processingStatus !== "RECEIVED").length,
+      /** Reminders the system has scheduled (in-app pipeline). */
+      scheduledReminders: activeReminderRows,
+      /** Pending / processing reminders not yet delivered. */
+      pendingReminders: pendingReviewReminders,
     },
     activeTimetable,
     timetables,
@@ -113,6 +149,14 @@ export async function getDashboardSnapshot(studentId: string) {
       createdAt: log.createdAt.toISOString(),
     })),
     reviewQueue,
+    upcomingReminders: upcomingReminders.map((r) => ({
+      id: r.id,
+      title: r.title,
+      offsetLabel: r.offsetLabel,
+      sendAt: r.sendAt.toISOString(),
+      dueAt: r.dueAt.toISOString(),
+      status: r.status,
+    })),
   };
 }
 
