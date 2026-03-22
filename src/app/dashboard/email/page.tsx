@@ -22,6 +22,7 @@ export default async function EmailPage() {
         initialReviewQueue={data.reviewQueue}
         initialHistory={data.emailHistory}
         graphStatus={data.graphStatus}
+        initialTrustedSenders={data.trustedSenders}
       />
     </div>
   );

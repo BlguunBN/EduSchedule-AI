@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -111,6 +110,7 @@ model StudentPreferences {
   weekStartsOn                Int      @default(1)
   includeWeekends             Boolean  @default(false)
   digestNotificationsEnabled  Boolean  @default(true)
+  trustedSenders              String   @default("[]")
   createdAt                   DateTime @default(now())
   updatedAt                   DateTime @updatedAt
   student                     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)

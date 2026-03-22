@@ -26,6 +26,7 @@ export async function getDashboardSnapshot(studentId: string) {
     graphStatus,
     reminderAggregate,
     upcomingReminders,
+    studentPrefs,
   ] = await Promise.all([
     prisma.timetable.findFirst({
       where: { studentId, isActive: true },
@@ -68,6 +69,7 @@ export async function getDashboardSnapshot(studentId: string) {
       orderBy: { sendAt: "asc" },
       take: 8,
     }),
+    prisma.studentPreferences.findUnique({ where: { studentId } }),
   ]);
 
   const statusCounts = Object.fromEntries(
@@ -100,9 +102,14 @@ export async function getDashboardSnapshot(studentId: string) {
       };
     });
 
+  const trustedSenders: string[] = studentPrefs?.trustedSenders
+    ? (JSON.parse(studentPrefs.trustedSenders) as string[])
+    : [];
+
   return {
     student,
     graphStatus,
+    trustedSenders,
     metrics: {
       activeTimetables: timetables.filter((item) => item.isActive).length,
       timetableEntries: activeTimetable?.entries.length ?? 0,

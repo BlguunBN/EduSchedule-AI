@@ -171,7 +171,18 @@ export async function POST(req: NextRequest) {
         limit: payload.limit,
         userId: user.id,
       }));
-    const results = messages.map(scanMessage);
+
+    // Filter to trusted senders if the student has configured any
+    const prefs = await prisma.studentPreferences.findUnique({ where: { studentId: student.id } });
+    const trustedSenders: string[] = prefs?.trustedSenders
+      ? (JSON.parse(prefs.trustedSenders) as string[])
+      : [];
+    const filteredMessages =
+      trustedSenders.length > 0
+        ? messages.filter((m) => trustedSenders.includes(m.from.toLowerCase()))
+        : messages;
+
+    const results = filteredMessages.map(scanMessage);
 
     if (payload.persistDetectedEvents) {
       await persistScan(student.id, provider, results);
@@ -183,6 +194,8 @@ export async function POST(req: NextRequest) {
     return jsonOk({
       provider,
       count: results.length,
+      totalFetched: messages.length,
+      senderFilterActive: trustedSenders.length > 0,
       limit: effectiveLimit,
       scanAt: new Date().toISOString(),
       results,

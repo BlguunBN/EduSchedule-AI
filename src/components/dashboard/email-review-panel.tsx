@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { CheckCircle2, CircleAlert, Link2, Mail, PlugZap, RefreshCw, XCircle } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { CheckCircle2, CircleAlert, Link2, Mail, Plus, PlugZap, RefreshCw, Trash2, XCircle } from "lucide-react";
 import { Badge, statusVariant } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast-provider";
@@ -50,6 +50,8 @@ type FetchedEmail = {
 type ScanMeta = {
   provider: string;
   count: number;
+  totalFetched: number;
+  senderFilterActive: boolean;
   limit: number;
   scanAt: string;
   fetched: FetchedEmail[];
@@ -59,17 +61,60 @@ export function EmailReviewPanel({
   initialReviewQueue,
   initialHistory,
   graphStatus,
+  initialTrustedSenders,
 }: {
   initialReviewQueue: ReviewItem[];
   initialHistory: EmailHistoryItem[];
   graphStatus: GraphStatus;
+  initialTrustedSenders: string[];
 }) {
   const [reviewQueue, setReviewQueue] = useState(initialReviewQueue);
   const [history, setHistory] = useState(initialHistory);
   const [actingId, setActingId] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanMeta, setScanMeta] = useState<ScanMeta | null>(null);
+  const [trustedSenders, setTrustedSenders] = useState(initialTrustedSenders);
+  const [senderInput, setSenderInput] = useState("");
+  const [senderSaving, setSenderSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const { pushToast } = useToast();
+
+  async function addSender() {
+    const email = senderInput.trim().toLowerCase();
+    if (!email) return;
+    setSenderSaving(true);
+    try {
+      const res = await fetch("/api/emails/senders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const result = await res.json();
+      if (!res.ok || !result.ok) throw new Error(result.error?.message ?? "Failed to add sender");
+      setTrustedSenders(result.data.senders);
+      setSenderInput("");
+      inputRef.current?.focus();
+    } catch (error) {
+      pushToast({ title: "Could not add sender", description: error instanceof Error ? error.message : "Try again", variant: "error" });
+    } finally {
+      setSenderSaving(false);
+    }
+  }
+
+  async function removeSender(email: string) {
+    try {
+      const res = await fetch("/api/emails/senders", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const result = await res.json();
+      if (!res.ok || !result.ok) throw new Error(result.error?.message ?? "Failed to remove sender");
+      setTrustedSenders(result.data.senders);
+    } catch (error) {
+      pushToast({ title: "Could not remove sender", description: error instanceof Error ? error.message : "Try again", variant: "error" });
+    }
+  }
 
   async function runScan() {
     setScanning(true);
@@ -83,8 +128,8 @@ export function EmailReviewPanel({
       if (!response.ok || !result.ok) {
         throw new Error(result.error?.message ?? "Scan failed");
       }
-      const { provider, count, limit, scanAt, results, history: freshHistory } = result.data;
-      setScanMeta({ provider, count, limit, scanAt, fetched: results ?? [] });
+      const { provider, count, totalFetched, senderFilterActive, limit, scanAt, results, history: freshHistory } = result.data;
+      setScanMeta({ provider, count, totalFetched: totalFetched ?? count, senderFilterActive: senderFilterActive ?? false, limit, scanAt, fetched: results ?? [] });
       if (freshHistory) setHistory(freshHistory);
       pushToast({
         title: "Scan complete",
@@ -163,10 +208,18 @@ export function EmailReviewPanel({
           <div>
             <p className="text-sm font-semibold text-slate-900">Inbox scan</p>
             {scanMeta ? (
-              <p className="mt-0.5 text-xs text-slate-500">
+                <p className="mt-0.5 text-xs text-slate-500">
                 Last scan: {new Date(scanMeta.scanAt).toLocaleString()} · Provider:{" "}
                 <span className="font-medium text-slate-700">{scanMeta.provider}</span> · Fetched{" "}
-                {scanMeta.count}/{scanMeta.limit}
+                {scanMeta.totalFetched}/{scanMeta.limit} from inbox
+                {scanMeta.senderFilterActive && (
+                  <span className="ml-1">
+                    · <span className="font-medium text-amber-600">{scanMeta.count} passed sender filter</span>
+                    {scanMeta.count < scanMeta.totalFetched && (
+                      <span className="text-amber-500"> ({scanMeta.totalFetched - scanMeta.count} filtered out)</span>
+                    )}
+                  </span>
+                )}
               </p>
             ) : (
               <p className="mt-0.5 text-xs text-slate-400">Run a scan to fetch the latest emails from Microsoft Graph.</p>
@@ -205,7 +258,62 @@ export function EmailReviewPanel({
         )}
 
         {scanMeta && scanMeta.fetched.length === 0 && (
-          <p className="mt-3 text-xs text-slate-400">No emails returned from inbox.</p>
+          <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2.5 text-xs text-amber-700">
+            {scanMeta.senderFilterActive && scanMeta.totalFetched > 0 ? (
+              <>
+                <span className="font-semibold">{scanMeta.totalFetched} email{scanMeta.totalFetched !== 1 ? "s" : ""} fetched</span>
+                {" "}but all were filtered out by your trusted senders list. Check that the sender address in your list exactly matches the <span className="font-mono">From</span> address on the email.
+              </>
+            ) : (
+              "No emails returned from inbox."
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* Trusted senders */}
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div>
+          <p className="text-sm font-semibold text-slate-900">Trusted senders</p>
+          <p className="mt-0.5 text-xs text-slate-400">
+            Only emails from these addresses will be scanned. Leave empty to scan all inbox emails.
+          </p>
+        </div>
+
+        <div className="mt-4 flex gap-2">
+          <input
+            ref={inputRef}
+            type="email"
+            value={senderInput}
+            onChange={(e) => setSenderInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addSender()}
+            placeholder="professor@university.edu"
+            className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
+          />
+          <Button type="button" size="sm" disabled={senderSaving || !senderInput.trim()} onClick={addSender}>
+            <Plus className="h-3.5 w-3.5" />
+            Add
+          </Button>
+        </div>
+
+        {trustedSenders.length > 0 ? (
+          <ul className="mt-3 space-y-1.5">
+            {trustedSenders.map((addr) => (
+              <li key={addr} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2">
+                <span className="text-sm text-slate-700">{addr}</span>
+                <button
+                  type="button"
+                  onClick={() => removeSender(addr)}
+                  className="text-slate-400 transition-colors hover:text-red-500"
+                  aria-label={`Remove ${addr}`}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 text-xs text-slate-400">No trusted senders yet — all inbox emails will be scanned.</p>
         )}
       </section>
 
